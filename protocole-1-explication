@@ -1,0 +1,208 @@
+\documentclass[12pt, a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{tabularx}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{tcolorbox}
+\usepackage{lipsum}
+
+% Configuration de la géométrie de la page
+\geometry{a4paper, left=25mm, right=25mm, top=25mm, bottom=25mm}
+
+% Configuration des en-têtes et pieds de page
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\leftmark}
+\cfoot{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% Titre et informations de l'auteur
+\title{\bfseries Analyse du Protocole d'Établissement de Session de Type Needham-Schroeder}
+\author{Auteur : Intelligence Artificielle}
+\date{\today}
+
+% Définition d'un environnement pour les blocs de protocole
+\newtcolorbox{protocolblock}[1]{
+    title={Protocole: Étape #1},
+    colback=white,
+    coltitle=black,
+    fonttitle=\bfseries,
+    breakable,
+    enhanced,
+    attach title to upper,
+    boxrule=0.5pt,
+    arc=4mm,
+    bottomrule=1mm,
+    toprule=1mm,
+    title=#1
+}
+
+% Commande pour une section de calcul
+\newcommand{\calculationsection}[2]{
+    \section*{Calcul du coût de \texorpdfstring{#1}{#1}}
+    #2
+}
+
+% Début du document
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Description du Protocole}
+Ce protocole a pour but d'établir une session sécurisée entre deux entités, A et B, en utilisant la cryptographie asymétrique pour l'échange initial et la génération d'une clé de session symétrique. Il s'agit d'une variante du protocole de Needham-Schroeder.
+
+\subsection{Messages et Objectifs}
+Voici le déroulement des échanges, message par message, avec le rôle de chaque élément.
+
+\begin{protocolblock}{Message 1: Demande d'initialisation}
+\textbf{A $\rightarrow$ B : } Enc$_{pk(B)}$($\langle$A, N$_A$, "INIT"$\rangle$)
+\begin{itemize}
+    \item \textbf{Action : } A génère un \textbf{nonce} $N_A$ (un nombre à usage unique) et envoie à B une demande d'initialisation chiffrée avec la clé publique de B.
+    \item \textbf{But : } Annoncer la volonté d'ouvrir une session et fournir un nonce lié à la session pour garantir la fraîcheur.
+\end{itemize}
+\end{protocolblock}
+
+\begin{protocolblock}{Message 2: Réponse de B}
+\textbf{B $\rightarrow$ A : } Enc$_{pk(A)}$($\langle$B, N$_B$, N$_A$$\rangle$)
+\begin{itemize}
+    \item \textbf{Action : } B génère son propre nonce $N_B$, inclut le nonce $N_A$ reçu (preuve de liaison), et renvoie le tout chiffré avec la clé publique de A.
+    \item \textbf{But : } Prouver à A que B a bien reçu le message 1 et fournir un défi $N_B$ que seul A peut lire.
+\end{itemize}
+\end{protocolblock}
+
+\begin{protocolblock}{Message 3: Échange de la clé de session}
+\textbf{A $\rightarrow$ B : } Enc$_{pk(B)}$($\langle$A, K, N$_B$, H1$\rangle$)
+\begin{itemize}
+    \item \textbf{Action : } A vérifie $N_A$ après déchiffrement du message 2, génère une clé de session fraîche $K$, calcule une valeur de hachage $H1 = H(\langle A,B,K,N_A,N_B\rangle)$, et envoie le tout chiffré avec la clé publique de B.
+    \item \textbf{But : } Transmettre la clé de session $K$ à B de façon confidentielle. La valeur de hachage $H1$ lie tous les paramètres pour garantir la fraîcheur et l'authenticité de la clé.
+\end{itemize}
+\end{protocolblock}
+
+\begin{protocolblock}{Message 4: Confirmation de B}
+\textbf{B $\rightarrow$ A : } Enc$_{pk(A)}$($\langle$B, H2$\rangle$)
+\begin{itemize}
+    \item \textbf{Action : } B déchiffre le message 3, vérifie la correspondance du nonce $N_B$, extrait la clé de session $K$, et calcule une valeur de hachage $H2 = H(\langle K, N_A, N_B, A, B\rangle)$. B renvoie $H2$ chiffré avec la clé publique de A comme accusé de réception.
+    \item \textbf{But : } Fournir une confirmation cryptographique à A que B a bien reçu $K$. A, en déchiffrant et en vérifiant $H2$, a la preuve que B possède la clé de session.
+\end{itemize}
+\end{protocolblock}
+
+\textit{Note : Un cinquième message optionnel peut être ajouté pour une confirmation finale symétrique, utilisant la clé de session $K$ pour prouver à B que A possède également la clé en clair.}
+
+\newpage
+
+\section{Calcul Détaillé des Coûts}
+Nous appliquons ici les règles de calcul de coûts du modèle de Dolev-Yao, où $f(\text{nom/key/nonce})=1$ et où un chiffrement asymétrique ou une paire ajoute un coût fixe.
+\begin{itemize}
+    \item $f(\langle m_1, m_2 \rangle) = 50 + f(m_1) + f(m_2)$
+    \item $f(\{m\}_{PK(X)}) = 1 + f(m) + f(PK(X))$
+    \item $f(H(m)) = 20 + 0.5 \cdot f(m)$
+\end{itemize}
+\textit{Règle spéciale : la paire la plus externe d'un message n'est pas comptée (sauf pour les calculs de hash).}
+
+\calculationsection{Message 1: $M_1 = \{\langle A,N_A,"INIT"\rangle\}_{PK(B)}$}{
+\begin{itemize}
+    \item \textbf{Contenu : } Le contenu est un triplet $\langle A, N_A, \text{"INIT"}\rangle$. On le traite comme des paires imbriquées.
+    \item \textbf{Coût interne : }
+    \begin{itemize}
+        \item Coût de la paire interne $\langle A, N_A\rangle$ : $f(\langle A,N_A\rangle) = 50 + f(A) + f(N_A) = 50 + 1 + 1 = 52$.
+        \item Ajout du troisième élément `"INIT"` : $f(\langle A,N_A,\text{"INIT"}\rangle) = 52 + f(\text{"INIT"}) = 52 + 1 = 53$.
+    \end{itemize}
+    \item \textbf{Coût du chiffrement asymétrique : }
+    \begin{itemize}
+        \item $f(M_1) = 1 + f(\text{contenu}) + f(PK(B)) = 1 + 53 + 1 = 55$.
+    \end{itemize}
+    \item \textbf{Résultat : } $f(M_1) = 55$.
+\end{itemize}
+}
+
+\calculationsection{Message 2: $M_2 = \{\langle B,N_B,N_A\rangle\}_{PK(A)}$}{
+\begin{itemize}
+    \item \textbf{Contenu : } Triplet $\langle B, N_B, N_A\rangle$, même forme que le précédent.
+    \item \textbf{Coût interne : }
+    \begin{itemize}
+        \item Coût de la paire interne $\langle B, N_B\rangle$ : $f(\langle B,N_B\rangle) = 50 + f(B) + f(N_B) = 50 + 1 + 1 = 52$.
+        \item Ajout du troisième élément $N_A$ : $f(\langle B,N_B,N_A\rangle) = 52 + f(N_A) = 52 + 1 = 53$.
+    \end{itemize}
+    \item \textbf{Coût du chiffrement asymétrique : }
+    \begin{itemize}
+        \item $f(M_2) = 1 + f(\text{contenu}) + f(PK(A)) = 1 + 53 + 1 = 55$.
+    \end{itemize}
+    \item \textbf{Résultat : } $f(M_2) = 55$.
+\end{itemize}
+}
+
+\calculationsection{Message 3: $M_3 = \{\langle A, K, N_B, H1\rangle\}_{PK(B)}$}{
+\begin{itemize}
+    \item \textbf{Contenu : } Quadruplet $\langle A, K, N_B, H1\rangle$.
+    \item \textbf{Calcul du hachage H1 : } $H1 = H(\langle A,B,K,N_A,N_B\rangle)$.
+    \begin{itemize}
+        \item Le contenu du hachage est un 5-tuple. On calcule son coût interne en paires imbriquées :
+        \begin{itemize}
+            \item $f(\langle A,B\rangle) = 50+1+1 = 52$.
+            \item $f(\langle \langle A,B\rangle, K\rangle) = 50+52+1 = 103$.
+            \item $f(\langle ..., N_A\rangle) = 50+103+1 = 154$.
+            \item $f(\langle ..., N_B\rangle) = 50+154+1 = 205$.
+        \end{itemize}
+        \item Coût du hachage : $f(H1) = f(H(\text{contenu})) = 20 + 0.5 \cdot f(\text{contenu}) = 20 + 0.5 \cdot 205 = 20 + 102.5 = 122.5$.
+    \end{itemize}
+    \item \textbf{Coût interne du message 3 : }
+    \begin{itemize}
+        \item D'abord $\langle A,K\rangle$ : $50+1+1 = 52$.
+        \item Puis $\langle \langle A,K\rangle, N_B\rangle$ : $50+52+1 = 103$.
+        \item On ajoute $H1$ : $f(\text{contenu}) = 103 + f(H1) = 103 + 122.5 = 225.5$.
+    \end{itemize}
+    \item \textbf{Coût du chiffrement asymétrique : }
+    \begin{itemize}
+        \item $f(M_3) = 1 + f(\text{contenu}) + f(PK(B)) = 1 + 225.5 + 1 = 227.5$.
+    \end{itemize}
+    \item \textbf{Résultat : } $f(M_3) = 227.5$.
+\end{itemize}
+}
+
+\calculationsection{Message 4: $M_4 = \{\langle B, H2\rangle\}_{PK(A)}$}{
+\begin{itemize}
+    \item \textbf{Contenu : } Paire $\langle B, H2\rangle$.
+    \item \textbf{Calcul du hachage H2 : } $H2 = H(\langle K,N_A,N_B,A,B\rangle)$.
+    \begin{itemize}
+        \item Le contenu est un 5-tuple. L'ordre n'affecte pas le coût, donc $f(\text{contenu}) = 205$ (même calcul que pour H1).
+        \item Coût du hachage : $f(H2) = 20 + 0.5 \cdot 205 = 122.5$.
+    \end{itemize}
+    \item \textbf{Coût interne du message 4 : }
+    \begin{itemize}
+        \item $f(\text{contenu}) = f(B) + f(H2) = 1 + 122.5 = 123.5$.
+    \end{itemize}
+    \item \textbf{Coût du chiffrement asymétrique : }
+    \begin{itemize}
+        \item $f(M_4) = 1 + f(\text{contenu}) + f(PK(A)) = 1 + 123.5 + 1 = 125.5$.
+    \end{itemize}
+    \item \textbf{Résultat : } $f(M_4) = 125.5$.
+\end{itemize}
+}
+
+\section{Somme Totale des Coûts du Protocole}
+Le coût total du protocole $f(P)$ est la somme des coûts de chaque message.
+\begin{align*}
+f(P) &= f(M_1) + f(M_2) + f(M_3) + f(M_4) \\
+&= 55 + 55 + 227.5 + 125.5 \\
+&= 463
+\end{align*}
+\begin{center}
+    \fcolorbox{black}{gray!20}{
+        \begin{minipage}{0.8\linewidth}
+            \centering
+            \textbf{Résultat final : } le coût total du protocole est de \textbf{463}.
+        \end{minipage}
+    }
+\end{center}
+
+\end{document}
