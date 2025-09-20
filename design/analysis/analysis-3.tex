@@ -1,0 +1,18 @@
+\subsection{Analysis}
+
+\subsubsection{Pros}
+\begin{itemize}
+    \item Very short and very simple protocol.
+    \item $A$ can decide when to access the session because he is responsible for sending the ticket $\{|A,B,K_{AB},N_a, \tau, \lambda, pub(A) |\}_{K_{BS}}$.
+    \item $A$ can verify the authenticity of the ticket’s origin.
+    \item Maintains mutual authentication between $A$ and $B$.
+\end{itemize}
+
+\subsubsection{Cons}
+\begin{itemize}
+    \item $A$ does not know whether $S$ has processed his request.
+    \item $A$ does not know when $B$ has received the key $K_{AB}$.
+    \item No indication of success from the server.
+    \item $A$ could send messages before $B$ has received the key $K_{AB}$.
+    \item Impossible to prove the server’s participation (lack of non-repudiation).
+\end{itemize}
