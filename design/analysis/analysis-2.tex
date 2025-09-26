@@ -1,0 +1,17 @@
+\subsection{Analysis}
+\subsubsection{Pros}
+\begin{itemize}
+    \item Simpler and shorter protocol.
+    \item $A$ can decide when to access the session because he is responsible for sending the ticket $\{|A,B,K_{AB},N_a, \tau, \lambda, pub(A) |\}_{K_{BS}}$.
+    \item $A$ can verify the authenticity of the ticket’s origin.
+    \item Maintains mutual authentication between $A$ and $B$.
+    \item $A$ can prove the server’s participation.
+\end{itemize}
+
+\subsubsection{Cons}
+\begin{itemize}
+    \item $B$ cannot verify the authenticity of the ticket $\{|A,B,K_{AB},N_a, \tau, \lambda, pub(A) |\}_{K_{BS}}$.
+    \item $S$ does not know whether $B$ has actually received the key $K_{AB}$.
+    \item $B$ must trust without verification.
+    \item $B$ cannot prove the server’s participation.
+\end{itemize}

@@ -1,0 +1,8 @@
+\section{Protocol: garance 1}
+
+\begin{enumerate}
+    \item $A \rightarrow B : \{\;A, N_A, \text{INIT}\;\}_{pub(B)}$
+    \item $B \rightarrow A : \{\;B, N_B, N_A\;\}_{pub(A)}$
+    \item $A \rightarrow B : \{\;A, K, N_B, h(\langle A, B, K, N_A, N_B\rangle)\;\}_{pub(B)}$
+    \item $B \rightarrow A : \{\;B, h(\langle K, N_A, N_B, A, B\rangle)\;\}_{pub(A)}$
+\end{enumerate}

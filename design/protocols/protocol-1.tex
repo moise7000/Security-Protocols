@@ -1,0 +1,12 @@
+\section{Protocol: First Attempt}
+
+\begin{enumerate}
+    \item $ A \rightarrow S : \{|A, B, N_a, K_{AB}|\}_{K_{AS}}$
+    \item $ S \rightarrow A : \Bigl\{\Bigl|S,A, N_a + 1, \{|A,B,K_{AB},N_a, \tau, \lambda |\}_{K_{BS}}\Bigr|\Bigr\}_{K_{AS}}$
+    \item $ A \rightarrow B : \{|A,B,K_{AB},N_a, \tau, \lambda, |\}_{K_{BS}}$
+    \item $ B \rightarrow S : \{|B, A, N_b|\}_{K_{BS}}$
+    \item $ S \rightarrow B : \{|S, B, N_b + 1, h(K_{AB}, N_b)|\}_{K_{BS}}$
+    \item $ B \rightarrow A : \{B, A, N_a+1, h(K_{AB}, N_b)\}_{pub(A)}$
+    \item $ A \rightarrow B : \{A, B, N_b+1, h(K_{AB}, N_a)\}_{pub(B)}$
+
+\end{enumerate}

@@ -1,0 +1,18 @@
+\subsection{Analysis}
+\subsubsection{Pros}
+\begin{itemize}
+    \item $A$ can decide when to access the session because he is responsible for sending the ticket $\{|A,B,K_{AB},N_a, \tau, \lambda, pub(A) |\}_{K_{BS}}$ to $B$.
+    \item $A$ can verify the authenticity of the ticket’s origin.
+    \item Mutual authentication between $A$ and $B$.
+    \item $A$ and $B$ can prove the server’s participation.
+    \item $A$ and $B$ authenticate each other through nonces and hashes.
+    \item Replay attack prevention with $\lambda$ and $\tau$.
+    \item $A$ and $B$ verify the authenticity of the server.
+\end{itemize}
+
+\subsubsection{Cons}
+\begin{itemize}
+    \item Complex and lengthy protocol.
+    \item If clocks are not synchronized, timestamps can be exploited.
+    \item If $S$ is compromised, all communications are vulnerable.
+\end{itemize}
