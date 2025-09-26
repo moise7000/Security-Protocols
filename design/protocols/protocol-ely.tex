@@ -1,0 +1,16 @@
+\section{Protocol: Ely the frog}
+
+\begin{enumerate}
+    \item $ A \rightarrow B : \{A, B, N_A\}_{pub(B)}$
+    \item $ A \rightarrow S : \{|A, B, T_{A}, K_{AB}|\}_{K_{AS}}$
+    \item $ S \rightarrow B : \{|A, B, T_{S}, K_{AB}|\}_{K_{BS}}$
+    \item $ B \rightarrow A : \{|B, A, N_A+1|\}_{K_{AB}}$
+\end{enumerate}
+
+We can reduce the cost on the last message using the hash function :
+\begin{enumerate}
+    \item $ A \rightarrow B : \{A, B, N_A\}_{pub(B)}$
+    \item $ A \rightarrow S : \{|A, B, T_{A}, K_{AB}|\}_{K_{AS}}$
+    \item $ S \rightarrow B : \{|A, B, T_{S}, K_{AB}|\}_{K_{BS}}$
+    \item $ B \rightarrow A : \{B, N_A +1, h(K_{AB})\}_{pub(A)}$
+\end{enumerate}
