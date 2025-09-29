@@ -1,0 +1,9 @@
+\section{Protocol: pub + Kab}
+
+\begin{enumerate}
+    \item $ A \rightarrow B : \Bigl\{ \{A, N_A, K_{AB}\}_{pub(B)}$
+    \item $ B \rightarrow A : \Bigl\{ \{B, N_A, N_B\}_{pub(A)}$
+    \item $ A \rightarrow B : \Bigl\{ \{A, N_B\}_{Kab}$
+    \item $ B \rightarrow A : \Bigl\{ \{B, N_A\}_{Kab}$
+
+\end{enumerate}
