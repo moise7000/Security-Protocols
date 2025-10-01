@@ -6,6 +6,7 @@
 
 % Packages
 \usepackage{amsmath}
+\usepackage{hyperref}
 
 % Document
 \begin{document}
@@ -25,22 +26,16 @@
 
 
     \maketitle
+    \tableofcontents
+    \newpage
+
 
     \input{assumptions}
-
-    \input{protocols/protocol-1}
-    \input{protocols/protocol-4}
-    \input{protocols/protocol-priv-pub}
-
-    \input{protocols/protocol-gar-2}
-    \input{protocols/protocol-gar-3}
-    \input{protocols/protocol-ely}
-    \newpage
-    \input{protocols/protocol-ely-the-little-frog}
-    \newpage
     \input{protocols/protocol-ely-the-big-frog}
     \newpage
     \input{description}
+    \newpage
+    \input{security-properties}
 
 
 

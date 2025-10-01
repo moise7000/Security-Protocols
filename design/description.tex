@@ -1,22 +1,21 @@
 \section{Protocol Description}
-\subsection{Ely the big frog}
 
 
-This protocol commences with entity $A$ generating a nonce, denoted as $N_A$, which is subsequently encrypted using
-a perfectly random and fresh session key, $K_{AB}$. $A$ then encrypts this cipher nonce, along with her identity, and
-transmits it to $B$ using his public key $pub(B)$. The transmitted data is structured as follows:
-$\{A, \{|N_A|\}_{K_{AB}}\}_{pub(B)}$. This message costs 65.
+
+This protocol begins with entity $A$ generating a nonce, denoted as $N_A$. $A$ then encrypts her identity together
+with the nonce using the freshly generated session key $K_{AB}$. The transmitted data is structured as follows:
+$\{|A,N_A|\}_{K_{AB}}$. This message costs \textbf{63}.
 
 \vspace{1cm}
 
 After sending the first message, $A$ sends to the honest and trusted server $S$, using the shared key $K_{AS}$,
 the identity of $B$, a timestamp $\tau$, a lifetime period to confirm the key $\lambda$ and the session key $K_{AB}$.
-The transmitted data is structured as follows: $\{|B, \tau, \lambda, K_{AB}|\}_{K_{AS}}$. This message costs 166.
+The transmitted data is structured as follows: $\{|B, \tau, \lambda, K_{AB}|\}_{K_{AS}}$. This message costs \textbf{166}.
 
 \vspace{1cm}
 
 Then $S$, using the shared key $K_{BS}$, sends to $B$ essentially the same message, but with $A$ replaced by $B$.
-The transmitted data is structured as follows: $\{|A, \tau, \lambda, K_{AB}|\}_{K_{BS}}$. This message costs: 166
+The transmitted data is structured as follows: $\{|A, \tau, \lambda, K_{AB}|\}_{K_{BS}}$. This message costs: \textbf{166}.
 
 \vspace{1cm}
 
@@ -28,7 +27,7 @@ they will not be able to use it after its expiration.
 Then $B$ respond to the first message of $A$, he can decrypt the nonce $\{|N_A|\}_{K_{AB}}$ with the session key.
 Key confirmation lies in the fact that $B$ sends back $N_A + 1$ to $A$. In this way, $A$ knows that $B$ has successfully
 retrieved the key. This allows combining key confirmation with the challenge–response mechanism for the authentication
-of $B$ with respect to $A$. The transmitted data is structured as follows: $\{| N_A + 1|\}_{K_{AB}}$. This message costs 12.
+of $B$ with respect to $A$. The transmitted data is structured as follows: $\{| N_A + 1|\}_{K_{AB}}$. This message costs \textbf{12}.
 
 
 
