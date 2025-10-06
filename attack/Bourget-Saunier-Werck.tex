@@ -1,0 +1,107 @@
+%! Author = ewan
+%! Date = 10/6/25
+
+% Preamble
+\documentclass[11pt]{article}
+
+% Packages
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+% Document
+\begin{document}
+
+    \title{
+            { \textbf{Security Protocols and Verification}} \\[1ex]
+        {\small Attack of Cryptographic Protocols}
+    }
+
+
+    \author{
+        Garance Frolla \\
+        Ely Marthouret \\
+        Ewan Decima\\ \\
+        Team: \textbf{ASKO OM8464A2}
+    }
+
+    \date{September / November 2025}
+
+
+    \maketitle
+    \tableofcontents
+    \newpage
+
+
+
+    \section{Attack on Bourget-Saunier-Werck}
+
+
+    We present a replay attack where an intruder $I$ exploits the lack of freshness verification in the protocol. The attack uses previously captured session values:
+
+    \begin{enumerate}
+        \item $\textcolor{red}{I(A)} \rightarrow S : A, \{| B, N_A^*, \{K^*\}_{pub(B)} |\}_{K_{AS}}$
+        \item $S \rightarrow B : \{| A, N_A^*, \{K^*\}_{pub(B)} |\}_{K_{BS}}$
+        \item $B \rightarrow \textcolor{red}{I(A)} : B, \{| ACK |\}_{K^*}$
+    \end{enumerate}
+
+    Where $K^*$ and $N_A^*$ are old values from a previous legitimate session that the intruder has captured and knows.
+
+    \section{Attack Description}
+
+    \subsection{Attack Flow}
+
+    \begin{itemize}
+        \item \textbf{Message 1: Message Replay}
+
+        The intruder $I$ replays the exact message previously sent by $A$ to the server $S$. Since this message is properly encrypted with $K_{AS}$ and contains all required fields, the server $S$ cannot distinguish it from a fresh, legitimate request.
+
+        \[
+            \textcolor{red}{I(A)} \rightarrow S : A, \{| B, N_A^*, \{K^*\}_{pub(B)} |\}_{K_{AS}}
+        \]
+
+        The server $S$ decrypts this message and believes it is receiving a new session establishment request from $A$.
+        \item \textbf{Message 2: Server Forwarding}
+
+        The server $S$, finding the message well-formed and properly authenticated, forwards it to $B$:
+
+        \[
+            S \rightarrow B : \{| A, N_A^*, \{K^*\}_{pub(B)} |\}_{K_{BS}}
+        \]
+
+        Participant $B$ decrypts the message using $K_{BS}$, extracts $\{K^*\}_{pub(B)}$, and decrypts it with their private key to obtain $K^*$.
+
+        \item \textbf{Message 3: Acknowledgment Interception}
+
+        $B$, believing they are establishing a fresh session with $A$, sends an acknowledgment encrypted with the session key $K^*$:
+
+        \[
+            B \rightarrow \textcolor{red}{I(A)} : B, \{| ACK |\}_{K^*}
+        \]
+
+        Since $I$ knows $K^*$, they can decrypt this acknowledgment and verify that $B$ has accepted the replayed session.
+
+    \end{itemize}
+
+
+
+
+    \subsection{Attack Results}
+
+
+
+    This replay attack successfully violates several critical security properties:
+
+    \begin{itemize}
+        \item \textbf{Freshness:} The protocol fails to ensure that messages are fresh. The server $S$ accepts and processes replayed messages without detecting that they are from an old session.
+
+        \item \textbf{Authentication} While the messages are correctly encrypted and appear authentic, $B$ incorrectly believes they are establishing a new session with $A$. In reality, $A$ is not participating in this session at all.
+
+        \item \textbf{Key Establishment} $B$ accepts an old, potentially compromised session key $K^*$ as if it were freshly generated, violating the principle of key freshness.
+
+        \item \textbf{Non-repudiation} $A$ can later deny having initiated this session, since they did not actually send the replayed message during this time period.
+    \end{itemize}
+
+
+\end{document}

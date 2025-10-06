@@ -8,7 +8,42 @@
 \usepackage{amsmath}
 
 % Document
+% Document
 \begin{document}
+
+    \title{
+            { \textbf{Security Protocols and Verification}} \\[1ex]
+        {\small Design and Analysis of Cryptographic Protocols}
+    }
+
+
+    \author{
+        Garance Frolla \\
+        Ely Marthouret \\
+        Ewan Decima\\ \\
+        Team: \textbf{ASKO OM8464A2}
+    }
+
+    \date{September / November 2025}
+
+
+    \maketitle
+    \tableofcontents
+    \newpage
+
+
+
+    \section{Attack}
+
+    \begin{enumerate}
+        \item $A \rightarrow I(B) : A, N_A$
+        \item $I \rightarrow B : I, N_I$
+        \item $B \rightarrow I : \{I, N_B, N_I\}_{pub(I)}$
+        \item $I(B) \rightarrow A : \{B, N_B, N_I\}_{pub(A)}$
+        \item $A \rightarrow I(B) : \{K_{AB}, N_B, N_A\}_{pub(B)}$
+        \item $I \rightarrow B : \{K_{IB}, N_B, N_I\}_{pub(B)}$
+        \item
+    \end{enumerate}
 
 
 
