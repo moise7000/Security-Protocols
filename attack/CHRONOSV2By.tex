@@ -1,0 +1,150 @@
+%! Author = ewan
+%! Date = 10/6/25
+
+% Preamble
+\documentclass[11pt]{article}
+
+% Packages
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+% Document
+% Document
+\begin{document}
+
+    \title{
+            { \textbf{Security Protocols and Verification}} \\[1ex]
+        {\small Attack of Cryptographic Protocols}
+    }
+
+
+    \author{
+        Garance Frolla \\
+        Ely Marthouret \\
+        Ewan Decima\\ \\
+        Team: \textbf{ASKO OM8464A2}
+    }
+
+    \date{September / November 2025}
+
+
+    \maketitle
+    \tableofcontents
+    \newpage
+
+
+
+    \section{Attack on Chronos V2}
+    Its actually the same attack as before but with the ids.
+
+    \begin{enumerate}
+        \item $A \rightarrow \textcolor{red}{I(S)} : ID_A,\{| K, M |\}_{K_{AS}}, \{|B|\}_{K_{AS}}$
+        \item $\textcolor{red}{I(A)} \rightarrow S : \textcolor{red}{ID_A}, \{| K, M |\}_{K_{AS}}, \{|B|\}_{K_{AS}}$
+        \item $S \rightarrow \textcolor{red}{I(B)} : ID_S,\{| K |\}_{K_{BS}}, \{|A|\}_{K_{BS}}$
+        \item $I \rightarrow S : ID_I,\{| K_I, M_I |\}_{K_{IS}}, \{|B|\}_{K_{IS}}$
+        \item $S \rightarrow \textcolor{red}{I(B)} : ID_S,\{|K_I|\}_{K_{BS}}, \{|I|\}_{K_{BS}}, \{M_I\}_{pub(B)}$
+        \item $\textcolor{red}{I(S)} \rightarrow B : \textcolor{red}{ID_S},\{|K_I|\}_{K_{BS}}, \{|A|\}_{K_{BS}} \{M\}_{pub(B)}$
+        \item $B \rightarrow \textcolor{red}{I(A)} : ID_B,\{|M+1|\}_{K_I}$
+        \item $\textcolor{red}{I(A)} \rightarrow S: \textcolor{red}{ID_A},\{| K, M |\}_{K_{AS}}, \textcolor{red}{\{|I|\}_{K_{AS}}}$
+        \item $S \rightarrow I : ID_S,\{|K|\}_{K_{IS}}, \{|I|\}_{K_{IS}}$
+        \item $\textcolor{red}{I(B)} \rightarrow A : \textcolor{red}{ID_B}, \{|M+1|\}_K$
+
+    \end{enumerate}
+
+    \section{Attack Description}
+    \subsection{Assumptions}
+    \label{sec:assumptions}
+    Assumption: the attack relies solely on the intruder $I$ possessing $\textcolor{red}{\{|I|\}_{K_{AS}}}$. This is a plausible
+    assumption within the considered threat model. In order to get its $I$ can do :
+    \begin{enumerate}
+        \item $I \rightarrow S: ID_S, \{| K, M |\}_{K_{IS}}, \{|A|\}_{K_{IS}}$
+        \item $S \rightarrow \textcolor{red}{I(A)} : ID_S,\{| K|\}_{K_{AS}}, \textcolor{red}{\{|I|\}_{K_{AS}}}$
+    \end{enumerate}
+    intercepts the message that $S$ sends to $A$ and stop the communication.
+
+    The intruder $I$ can easily learn the identities of $A$, $B$ and $S$: agent identifiers are not secret and can be
+    obtained simply by initiating legitimate protocol runs. For example, $I$ can engage $A$ to obtain $ID_A$ as follows
+
+
+\begin{enumerate}
+    \item $I \rightarrow S: ID_I, \{|K,M|\}_{K_{IS}}, \{|B|\}_{K_{IS}}$.
+    \item $S \rightarrow A: ID_S, \{|K|\}_{K_{AS}}, \{|I|\}_{K_{AS}}, \{|M|\}_{pub(A)}$.
+    \item $A \rightarrow I: ID_A, \{|M+1|\}_K$.
+\end{enumerate}
+
+By the same procedure $I$ can obtain $ID_B$ (replace $A$with $B$ in the above exchange).
+
+
+
+
+
+    \subsection{Attack Flow}
+
+    \begin{itemize}
+        \item \textbf{Message 1:} $A$ initiates the protocol, wanting to establish a secure session with $B$ through
+        the trusted server $S$. However, the intruder $I$ intercepts this message while
+        impersonating the server $S$. $I$ stores $\{| K, M |\}_{K_{AS}}$ for later use.
+        $\mathcal{K}_1 = \Bigl\{ K(ID_A), K(ID_B), K(ID_S) \\ K\bigl(\{| K, M |\}_{K_{AS}}\bigr), K\bigl(\{|B|\}_{K_{AS}}\bigr), K\bigl(\{|I|\}_{K_{AS}}\bigr) \Bigr\}$
+
+        \item \textbf{Message 2:} The intruder $I$ forwards $A$'s original message to the real server $S$, maintaining
+        the deception. $I$ impersonates $A$ to $S$, making $S$ believe the request is legitimate. $S$ decrypts
+        the message using $K_{AS}$ and learns that $A$ wants to communicate with $B$ using session key $K$.
+
+
+        \item \textbf{Message 3:} Server $S$, believing the request is legitimate, prepares to forward the session key
+        to $B$. However, $I$ intercepts this message while impersonating $B$. $I$ cannot directly read this
+        message intended for $B$.
+        $\mathcal{K}_3 = \mathcal{K}_1 \cup \Bigl\{ K\bigl( \{| K |\}_{K_{BS}}\bigr),  K\bigl(\{|A|\}_{K_{BS}}\bigr) \Bigr\}$
+
+
+
+
+        \item \textbf{Message 4:} This is where the intruder launches a parallel session. $I$ initiates their own
+        session with server $S$, generating their own session key $K_I$ and nonce $M_I$. $I$ sends these to $S$
+        encrypted with $K_{IS}$, requesting a session with $B$. This parallel session runs alongside the original
+        $A$-to-$B$ session.
+
+        \item \textbf{Message 5:} Server $S$ responds to $I$'s request by sending the session key $K_I$ to what it
+        believes is $B$, encrypted with $K_{BS}$. S includes $I$'s identity encrypted with $K_{BS}$, and the
+        nonce $M_I$ encrypted with $B$'s public key. The intruder $I$ intercepts this message.
+
+        \item \textbf{Message 6:} This is the critical substitution attack. The intruder $I$ crafts a fraudulent message
+        to $B$ by combining elements from different sessions. $I$ takes the session key $K_I$ (from message 5,
+        which $I$ knows) encrypted with $K_{BS}$, but substitutes $I$'s identity with $A$'s identity from message 3.
+        $I$ also replaces $\{M_I\}_{pub(B)}$ with the original encrypted nonce $\{M\}_{pub(B)}$ from $A$'s session.
+        $B$ receives this message, decrypts it, and believes that $A$ wants to establish a session using key
+        $K_I$ (which $B$ thinks is the key from $A$, but is actually the intruder's key).
+
+        \item \textbf{Message 7:} $B$, believing they are responding to $A$ with the correct session key, computes
+        $M + 1$ and encrypts it with what they think is $A$'s session key: $K_I$. However, $B$ actually uses $K_I$
+        (the intruder's key). $I$ intercepts this message and can decrypt it because $I$ possesses $K_I$. $\mathcal{K}_7 = \mathcal{K}_3 \cup \{K(M)\}$
+
+        \item \textbf{Message 8:} The intruder $I$, still maintaining the parallel session, sends another message to
+        server $S$ while impersonating $A$. $I$ sends the original $\{| K, M |\}_{K_{AS}}$ from $A$'s initial request, but
+        changes the intended recipient from $B$ to $I$. (\textit{see \ref{sec:assumptions}}).
+
+        \item \textbf{Message 9:} Server $S$ responds to what it believes is $A$'s request to establish a session with
+        $I$. $S$ sends back $K$ encrypted with $K_{IS}$, along with $I$'s identity. The intruder I receives this
+        message and can decrypt it, confirming access to the session key $K$. $\mathcal{K}_9 = \mathcal{K}_7 \cup \{K(\textcolor{red}{K})\}$
+
+        \item \textbf{Message 10:} Finally, $I$ forwards $B$'s authentication response ($M + 1$) to $A$, but encrypted
+        with the original session key $K$ instead of $K_I$. Since $I$ knows both $K$ (from messages 8-9) and
+        the plaintext $M + 1$ (decrypted from message 7 using $K_I$), $I$ can re-encrypt the message
+        appropriately. $A$ receives $\{|M + 1|\}_{K}$ and believes that $B$ has successfully authenticated and
+        possesses the session key $K$.
+
+    \end{itemize}
+
+    \subsection{Attack Results}
+
+    At the conclusion of this attack, $A$ and $B$ believe they have successfully established a secure session with each other, but they are actually using different session keys:
+    \begin{itemize}
+        \item \textbf{$A$ believes:} They completed the protocol with $B$ and that the session key $K$ (which $A$ generated) is shared only with $B$ and server $S$.
+        \item \textbf{$B$ believes:} They completed the protocol with $A$ and that the session key $K_I$ (which $B$ thinks came from $A$) is shared only with $A$ and server $S$.
+        \item \textbf{In reality:} The intruder $I$ knows both session keys $K$ and $K_I$. $I$ can act as a man-in-the-middle, decrypting all messages from both $A$ and $B$, reading them, and potentially modifying them before re-encrypting and forwarding them to maintain the illusion of direct communication.
+    \end{itemize}
+
+
+
+\end{document}
