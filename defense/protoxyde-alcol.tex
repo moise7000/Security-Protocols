@@ -12,6 +12,9 @@
 \usepackage{graphicx}
 \usepackage[toc,page]{appendix}
 \usepackage{caption}
+\usepackage{soul}
+\usepackage{csquotes}
+\usepackage[T1]{fontenc}
 
 
 % Document
@@ -84,7 +87,7 @@
     \end{itemize}
 
     \section{Refutation}
-        \subsection{Symmetric encryption specification}
+        \subsection{Symmetric Encryption Specification}
 
 
 
@@ -128,20 +131,94 @@
 
 
     \subsection{Timestamp}
+    In this attack scenario, the main objective of $I$ is to find a symmetric key $K_I$ such that for a fixed
+    $M = \langle X',Y',Z', \Sigma'\rangle \in \mathcal{M} $
+    \begin{center}
+        $dec(enc(\langle X',Y',Z', \Sigma'\rangle, K_I), K_{BS}) = \langle A,Y,Z, \Sigma \rangle $
+    \end{center}
+    i.e.
+
+    \begin{center}
+        $enc(\langle X',Y',Z', \Sigma'\rangle, K_I) = enc(\langle A,Y,Z, \Sigma \rangle, K_{BS}) $
+    \end{center}
+
+    In your attack you omit an important point: $B$ process a check on the timestamp $\tau$.  That is why $Y$ must be
+    equal to a valid timestamp (coded on 64 bit to avoid the \textit{Year 2038 problem}) and $Z$ must be a valid lifetime.
+    This greatly complicates the brute-force attack. The intruder must not be content with $X = A$ but must (indirectly)
+    generate a timestamp $Y = \tau$ and a lifetime $Z = \lambda$ such that $\tau > t - \lambda$ where $t$ is the time
+    when $B$ will get $T_I$.
+
+    \vspace{0.5cm}
+
+    Let us estimate the computational complexity of this brute-force attack. Assuming AES-128 encryption (128-bit keys),
+    the keyspace contains $2^{128}$ possible keys. For a random key $K_I$, the probability that decrypting with $K_{BS}$ produces
+    values satisfying all constraints is the product of individual probabilities:
+    \begin{itemize}
+        \item Probability that $[dec(T_I, K_{BS})]_1 = A$ : $P( "X=A" ) = \frac{1}{2^1} = \frac{1}{2}$
+        \item  Probability that $[dec(T_I, K_{BS})]_2 = \tau$ is a valid timestamp within $\pm1$ hour window: $P("Y = \tau")\simeq \frac{2^{12}}{2^{64}}$
+        \item Probability that $[dec(T_I, K_{BS})]_3 = \lambda$ is a valid lifetime (assuming 32-bit encoding with $2^{10}$ valid
+                 values): $P("Z = \lambda") \simeq \frac{2^{10}}{2^{32}}$
+    \end{itemize}
+
+    The combined probability is approximately:
+
+    \begin{center}
+        $\frac{1}{2} \times \frac{2^{12}}{2^{64}} \times \frac{2^{10}}{2^{32}} = 2^{-75}$
+    \end{center}
+
+    Therefore, the expected number of candidate keys $K_I$ that satisfy all constraints is:
+    \begin{center}
+        $2^{128} \times 2^{-75} = 2^{53}$ keys
+    \end{center}
+
+    Even in the worst case where $A$ (and this choice of yours is questionable) is encoded on only 1 bit, the intruder
+    would need to test: $2^{53}$ keys at $10^9$ operations per second $\simeq \frac{9 \times  10^{15}}{10^9} = 9 \times 10^6$ seconds $\simeq 104$ days.
+
+
+  
+
+
+    \subsection{Bruteforce Issues}
     
+    Crucially, since $K_{BS} \notin K_I$, $I$ cannot verify locally whether a
+    candidate $K_I$ produces the correct decryption. Instead, $I$ must test
+    each of the $2^{53}$ candidate keys through interaction with $B$:
+
+    \begin{itemize}
+        \item For each candidate $K_I$, craft $T_I$
+        \item Send $M_{1,A}$ and $T_I$ to $B$ over the network
+        \item Observe $B$'s response to determine if the decryption was valid 
+    \end{itemize}
+    
+    Assuming an optimistic round-trip time of 10 ms per attempt, testing $2^{53}$ candidates would require : 
+    \begin{center}
+        $2^{53} \times 0.01 \text{ s } \simeq 9 \times 10^{13} \text{ s } \simeq 2.9 \text{ million years} $
+    \end{center}
+
+
+    This estimate assumes:
+    \begin{itemize}
+        \item Perfect network conditions with no rate limiting
+        \item $B$ processes all attempts without detection or blocking
+        \item The intruder can maintain continuous communication for million of years
+    \end{itemize}
+
+    In practice, the attack is completely infeasible because:
+    \begin{itemize}
+        \item The timestamp constraint means candidates must be retested as time progresses
+        \item Network's rate limit would increase the time by order of magnitude
+        \item Finally the intruder is not \textit{Dracula}, he will not live forever ...
+    \end{itemize}
+
 
     
-    \subsection{Bruteforce issues}
-        First of all $K_{BS} \notin \mathcal{K}_I$. $I$ can try to bruteforce $K_{BS}$ but we don't think that $I$ will outlive \textit{Dracula}.
-    
-    %- litteratre
-    %- validity of the timestamp
-    %- aes failure
-    %- B send not tp A at every time and I dont know to who B will send the answer
+
+
+
 
     
     \section{Conclusion}
-    We refuse the attack.
+    We \underline{refuse this attack}, but we are ready to face another one.
 
 
     \newpage
