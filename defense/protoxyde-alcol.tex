@@ -8,6 +8,11 @@
 \usepackage{amsmath}
 \usepackage{xcolor}
 \usepackage{hyperref}
+\usepackage{pdfpages}
+\usepackage{graphicx}
+\usepackage[toc,page]{appendix}
+\usepackage{caption}
+
 
 % Document
 % Document
@@ -33,7 +38,7 @@
     \tableofcontents
     \newpage
 
-    \section{Defense against PROTOxyde d'alCOl}
+    \section{Attack against PROTOxyde d'alCOl}
 
     \subsection{Notation}
     \begin{itemize}
@@ -78,8 +83,81 @@
 
     \end{itemize}
 
-    \subsection{Refutation}
+    \section{Refutation}
+        \subsection{Symmetric encryption specification}
+
+
+
+            The assumption that if $B$ uses a different key $K_{BS} \neq K_I$ that the one used for encryption of $T_I$ by the
+            intruder the decrypted output will be garbage (random-looking bytes) is questionable and depend a lot of
+            the code implementation of the protocol. In fact, if the implementation uses an authenticated mode,
+            like AES-GCM or ChaCha20-Poly135, decryption will fail completely. But if the implementation uses AES-CBC
+            it won't throw an error and $B$ will get nonsense plaintext.
+
+            \vspace{0.5cm}
+
+            Moreover if $I$ uses the wrong cipher configuration such ad AES-ECB instead of AES-CB or AES-GCM, $B$ will
+            end up with completely unreadable results, and if the padding is incorrect (for example, PKCS7 was expected
+            but not applied), $B$ will likely encounter padding errors or corrupted trailing bytes.
+
+            \vspace{0.5cm}
+
+            Finally, if $I$ uses the wrong Initial Vector (IV) or nonce, the first block (or few blocks) of
+            decrypted data will be corrupted. The rest might still decrypt correctly depending on the mode (e.g., CBC
+            mode propagates errors, but CTR mode only corrupts corresponding parts)
+
+
+
+            \vspace{0.5cm}
+
+            Since the protocol design project did not require us to specify the actual implementation of the protocol
+            but only its theoretical aspect, the choice of the encryption scheme cannot be considered a point of attack;
+            we can assume the encryption scheme to be flawless. For example in the Needham-Schroeder template, there is
+            no mention of the encryption scheme.
+
+
+    \subsection{Litterature}
+
+    In cryptographic literature, and particularly in theoretical descriptions of protocols (for key exchange,
+    authentication, etc.), there are no specifications regarding the choice of implementation or hardware aspects. For
+    example, in \textit{Applied Cryptography, Second Edition} by Bruce Schneier (translated by Laurent Viennot), in the
+    section 'Authentication and Key Exchange,' the theoretical description of the Needham–Schroeder protocol does not
+    mention the choice of the symmetric encryption algorithm, nor the size used to encode the participants’ identities.
+    (\textit{See ~\ref{fig:NS_BS} in Appendices~\ref{ann:NS_BS}})
+
+
+
+    \subsection{Timestamp}
+    
+
+    
+    \subsection{Bruteforce issues}
+        First of all $K_{BS} \notin \mathcal{K}_I$. $I$ can try to bruteforce $K_{BS}$ but we don't think that $I$ will outlive \textit{Dracula}.
+    
+    %- litteratre
+    %- validity of the timestamp
+    %- aes failure
+    %- B send not tp A at every time and I dont know to who B will send the answer
+
     
     \section{Conclusion}
+    We refuse the attack.
+
+
+    \newpage
+    \begin{appendices}
+
+        \section{Theoretical Needham-Schroeder}\label{ann:NS_BS}
+
+
+        \begin{figure}[h!]
+            \centering
+            \includegraphics[width=0.8\textwidth]{NS-schneir}
+            \caption{NS in \textit{Applied Cryptography} by Bruce Schneier}
+            \label{fig:NS_BS}
+        \end{figure}
+
+    \end{appendices}
+
 
 \end{document}
