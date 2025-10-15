@@ -1,0 +1,81 @@
+%! Author = ewan
+%! Date = 10/15/25
+
+% Preamble
+\documentclass[11pt]{article}
+
+% Packages
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{pdfpages}
+\usepackage{graphicx}
+\usepackage[toc,page]{appendix}
+\usepackage{caption}
+\usepackage{soul}
+\usepackage{csquotes}
+\usepackage[T1]{fontenc}
+
+
+% Document
+% Document
+\begin{document}
+
+    \title{
+            { \textbf{Security Protocols and Verification}} \\[1ex]
+        {\small Defense of Cryptographic Protocol}
+    }
+
+
+    \author{
+        Garance Frolla \\
+        Ely Marthouret \\
+        Ewan Decima\\ \\
+        Team: \textbf{ASKO OM8464A2}
+    }
+
+    \date{September / November 2025}
+
+
+    \maketitle
+    \tableofcontents
+    \newpage
+
+    \section{Attack from BitSentinel}
+
+    \subsection{The attack}
+    You will find below a concise summary of your attack against our protocol.
+
+    \begin{enumerate}
+        \item $I \rightarrow B: \{|\langle A, N_I \rangle |\}_{K'}$
+        \item $I \rightarrow S: \{|\langle \textcolor{red}{B}, \tau, \lambda, K' \rangle |\}_{\textcolor{red}{K_{IS}}}$
+        \item $S \rightarrow B: \{|\langle \textcolor{red}{A}, \tau, \lambda, K' \rangle|\}_{K_{BS}}$
+        \item $B \rightarrow I: \{| N_I +1 |\}_{K'}$
+    \end{enumerate}
+    \subsection{Refutation}
+
+    Your attack is based on two assumptions of yours:
+    \begin{itemize}
+        \item In the second message $I$ does not communicate his interlocutor, but he does.
+        \item $S$ does not know who sent the second message, but in fact he do: he just uses $K_{IS}$ to decipher the
+            second message, so $S$ knows that the sender of the second message is $I$, not $A$. So the third message, sent by $S$ should be
+            \begin{center} $S \rightarrow B: \{|\langle \textcolor{red}{I}, \tau, \lambda, K' \rangle|\}_{K_{BS}}$ \end{center}
+
+    \end{itemize}
+
+
+
+
+
+
+
+
+
+
+    \section{Conclusion}
+    We \underline{refuse this attack}, but we are ready to face another one.
+
+
+
+
+\end{document}
