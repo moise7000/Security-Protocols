@@ -1,0 +1,80 @@
+%! Author = garance
+%! Date = 10/15/25
+
+% Fichier LaTeX décrivant l'attaque (version française)
+\documentclass[11pt]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+
+\begin{document}
+
+
+\title{\textbf{Protocoles de sécurité et vérification} \\
+{\small \textit{attaque sur BitSentinels}}}
+
+\author{Garance Frolla \\ Ely Marthouret \\ Ewan Decima \\\\ \textbf{Équipe : ASKO OM8464A2}}
+\date{Septembre / Novembre 2025}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Protocole étudié}
+
+Nous considérons la trace suivante  :
+
+\begin{enumerate}
+    \item $B \rightarrow S : \{N_b\}_{pub(S)}, \{|B|\}_{N_b}, \{|A|\}_{N_b}$
+    \item \textcolor{red}{ $S \rightarrow I(A) : \{|N_b|\}_{Kas}, \{|B|\}_{N_b}, \{|K|\}_{Kas}$}
+    \item \textcolor{red} {$I(S) \rightarrow A : \{|N_b|\}_{Kas}, \{|B|\}_{N_b}, \{|K^*|\}_{Kas}$}
+    \item $A \rightarrow B : \{N_b\}_{pub(B)}, \{K^*\}_{pub(B)}$
+    \item $B \rightarrow A : \{|N_b|\}_{K^*}$
+\end{enumerate}
+
+\bigskip
+\noindent
+L'intrus $I$ écoute les communications entre $A$ et $B$ et intercepte tous les termes chiffrés $\{|K|\}_{Kas}$. Avec le temps, on suppose que $I$ connaît une ancienne clé $K^*$ ainsi que le chiffrement associé $\{|K^*|\}_{Kas}$.
+
+\section{Description synthétique de l'attaque}
+
+\subsection{Hypothèses}
+\begin{itemize}
+    \item $I$ est capable d'intercepter et de relayer des messages 
+    \item $I$ a obtenu, lors d'une session précédente, une ancienne clé $K^*$ et le chiffré correspondant $\{K^*\}_{Kas}$.
+
+\end{itemize}
+
+\subsection{Déroulement de l'attaque}
+
+\begin{enumerate}
+    \item \textbf{Message 1 (initial) :} $B$ lance une session classique en envoyant à $S$ les éléments $\{N_b\}_{pub(S)},\ \\;\{|B|\}_{N_b},\;\{|A|\}_{N_b}$. Ici $B$ pense initier une session fraîche avec $A$.
+
+    \item \textbf{Message 2 (S envoie une clé fraîche) :} Le serveur $S$ transmet à $A$ (mais le message est intercepté par $I$ qui se fait passer pour $A$ vis-à-vis de $S$) : $\{|N_b|\}_{Kas},\;\{|B|\}_{N_b},\;\{|K|\}_{Kas}$. Ce message contient une clé fraîche $K$ chiffrée sous le mécanisme $Kas$.
+
+    \item \textbf{Message 3 (substitution par $I$) :} L'intrus $I$, qui a déjà en sa possession une ancienne clé $K^*$ (prélevée dans une communication antérieure), relaye au destinataire final $A$ un message falsifié : $\{|N_b|\}_{Kas},\;\{|B|\}_{N_b},\;\{|K^*|\}_{Kas}$. Autrement dit, $I$ remplace la portion chiffrée $\{|K|\}_{Kas}$ par $\{|K^*|\}_{Kas}$.
+
+    \item \textbf{Message 4 (A transmet l'ancienne clé à B) :} Convaincue d'avoir reçu une clé valable, $A$ envoie à $B$ : $\{N_b\}_{pub(B)},\;\{K^*\}_{pub(B)}$. $B$ reçoit donc l'ancienne clé $K^*$ chiffrée pour lui.
+
+    \item \textbf{Message 5 (B renvoie le nonce chiffré par $K^*$) :} $B$ poursuit le protocole en renvoyant $\{|N_b|\}_{K^*}$. La session suit donc, mais sur la clé ancienne $K^*$ compromise.
+\end{enumerate}
+
+
+\section{Conséquences et conclusion}
+
+\noindent
+À la fin de l'attaque, $A$ et $B$ croient avoir établi une communication sécurisée avec une clé fraîche pour la session. En réalité, la clé utilisée est une clé ancienne $K^*$ supposée compromise :
+
+\begin{itemize}
+    \item $A$ pense détenir une clé $K$ fraîche fournie par $S$ mais a en fait accepté $K^*$ transmis par $I$.
+    \item $B$ croit communiquer avec $A$ en utilisant une clé valide et fraîche, alors qu'il s'agit de $K^*$.
+    \item $I$ peut lire toutes les communications ultérieures chiffrées avec $K^*$.
+\end{itemize}
+
+\end{document}
