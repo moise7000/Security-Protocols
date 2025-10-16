@@ -1,0 +1,83 @@
+%! Author = ewan
+%! Date = 10/16/25
+
+% Fichier LaTeX décrivant l'attaque (version française)
+\documentclass[11pt]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{geometry}
+
+
+\begin{document}
+
+
+    \title{
+            { \textbf{Security Protocols and Verification}} \\[1ex]
+        {\small Attack of Cryptographic Protocols}
+    }
+
+
+    \author{
+        Garance Frolla \\
+        Ely Marthouret \\
+        Ewan Decima\\ \\
+        Team: \textbf{ASKO OM8464A2}
+    }
+
+    \date{September / November 2025}
+
+    \maketitle
+    \tableofcontents
+    \newpage
+
+    \section{Attack on BitSentinel V3}
+
+
+    We present an attack where an intruder $I$ exploits the fact that $A$ is an \textit{hash oracle}: for a given
+    encrypted nonce, $A$ give us the nonce digest.
+
+
+    \begin{enumerate}
+
+        \item $\textcolor{red}{I(A)} \rightarrow B: \{N_I\}_{pub(B)} \{K_I\}_{pub(B)}, \textcolor{red}{A}$
+        \item $B \rightarrow \textcolor{red}{I(A)} : \{|\{|N_I|\}_{N_I}|\}_{K_I}, {N_B}_{pub(A)}, B$
+        \item $I \rightarrow A : "\text{Send a request to initiate the protocol}"$
+        \item $A\rightarrow I : \{N'_A\}_{pub(I)}, \{K'\}_{pub(I)}, I$
+        \item $I \rightarrow A : \bigl\{\bigl| \{|N'_A|\}_{N'_A}  \bigr|\bigr\}_{K'} \textcolor{red}{ \{N_B\}_{pub(A)}}, I$
+        \item $A \rightarrow H(N_B)$
+        \item $\textcolor{red}{I(A)} \rightarrow B: H(N_B)$
+
+    \end{enumerate}
+
+    \section{Description}
+    \begin{itemize}
+        \item \textbf{Message 1:} The intruder $I$ impersonates $A$ and craft a correct message and sends it to $A$. $A$
+        thinks that $B$ sends a legitimate message.
+
+        \item \textbf{Message 2:} $B$ sends a legitimate respond to $A$, but $I$ intercepts this answer and store
+        ${N_B}_{pub(A)}$ for later. At this point, $\mathcal{K}_I = \bigl\{K(\{N_B\}_{pub(A)})\bigr\}$
+
+        \item \textbf{Message 3:} $I$ sends a request to $A$. $I$ demands to $A$ to initiate the key exchange protocol.
+
+        \item \textbf{Message 4:} $A$ start a legitimate key exchange protocol with $I$.
+
+        \item \textbf{Message 5:} $I$ answers to $A$, but instead of creating a new fresh nonce he uses the stored $\{N_B\}_{pub(A)}$
+        from the session between $\textcolor{red}{I(A)}$ and $B$.
+
+        \item \textbf{Message 6:} $A$ still thinks that the communication is legit and sends back to $B$ the digest
+        that $I$ needs to finis the attack. At this point $\mathcal{K}_I =\Bigl\{K(\{N_B\}_{pub(A)}), K\bigl(H(N_B)\bigr)\Bigr\} $
+
+        \item \textbf{Message 7:} Finally $I$ sends to $B$ his hashed nonce.
+    \end{itemize}
+
+    \section{Attack Results}
+    While the messages are correctly encrypted and appear authentic, $B$ incorrectly believes they are establishing a new session with $A$. In reality, $B$ is speaking with $I$.
+
+
+
+\end{document}
