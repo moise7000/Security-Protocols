@@ -41,7 +41,7 @@
     \tableofcontents
     \newpage
 
-    \section{Attack from BitSentinel}
+    \section{Attack from BitSentinels}
 
     \subsection{The attack}
     You will find below a concise summary of your attack against our protocol.
@@ -50,25 +50,23 @@
         \item $I \rightarrow B: \{|\langle A, N_I \rangle |\}_{K'}$
         \item $I \rightarrow S: \{|\langle \textcolor{red}{B}, \tau, \lambda, K' \rangle |\}_{\textcolor{red}{K_{IS}}}$
         \item $S \rightarrow B: \{|\langle \textcolor{red}{A}, \tau, \lambda, K' \rangle|\}_{K_{BS}}$
-        \item $B \rightarrow I: \{| N_I +1 |\}_{K'}$
+        \item $B \rightarrow \textcolor{red}{I(A)}: \{| N_I +1 |\}_{K'}$
     \end{enumerate}
     \subsection{Refutation}
 
     Your attack is based on two assumptions of yours:
     \begin{itemize}
         \item In the second message $I$ does not communicate his interlocutor, but he does.
-        \item $S$ does not know who sent the second message, but in fact he do: he just uses $K_{IS}$ to decipher the
+        \item $S$ does not know who sent the second message, but in fact he does: he just used $K_{IS}$ to decipher the
             second message, so $S$ knows that the sender of the second message is $I$, not $A$. So the third message, sent by $S$ should be
             \begin{center} $S \rightarrow B: \{|\langle \textcolor{red}{I}, \tau, \lambda, K' \rangle|\}_{K_{BS}}$ \end{center}
 
+
     \end{itemize}
-
-
-
-
-
-
-
+    So $B$ will know that the message is coming from $I$ and not $A$. In fact, $B$ will decipher the first message and will spot
+    the difference between the identity contained in the first message and the identity of the sender contained in
+    the third message
+    ($\textcolor{red}{I} \neq A$).
 
 
 
