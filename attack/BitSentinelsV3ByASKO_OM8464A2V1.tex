@@ -60,7 +60,7 @@
         thinks that $B$ sends a legitimate message.
 
         \item \textbf{Message 2:} $B$ sends a legitimate respond to $A$, but $I$ intercepts this answer and store
-        ${N_B}_{pub(A)}$ for later. At this point, $\mathcal{K}_I = \bigl\{K(\{N_B\}_{pub(A)})\bigr\}$
+        ${N_B}_{pub(A)}$ for later. At this point, $\mathcal{K}_I = \bigl\{K(\{N_B\}_{pub(A)})\bigr\}$.
 
         \item \textbf{Message 3:} $I$ sends a request to $A$. $I$ demands to $A$ to initiate the key exchange protocol.
 
@@ -70,7 +70,7 @@
         from the session between $\textcolor{red}{I(A)}$ and $B$.
 
         \item \textbf{Message 6:} $A$ still thinks that the communication is legit and sends back to $B$ the digest
-        that $I$ needs to finis the attack. At this point $\mathcal{K}_I =\Bigl\{K(\{N_B\}_{pub(A)}), K\bigl(H(N_B)\bigr)\Bigr\} $
+        that $I$ needs to finis the attack. At this point $\mathcal{K}_I =\Bigl\{K(\{N_B\}_{pub(A)}), K\bigl(H(N_B)\bigr)\Bigr\} $.
 
         \item \textbf{Message 7:} Finally $I$ sends to $B$ his hashed nonce.
     \end{itemize}
