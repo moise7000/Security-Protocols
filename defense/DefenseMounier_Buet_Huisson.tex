@@ -59,6 +59,16 @@
     \end{enumerate}
     \subsection{Refutation}
 
+    When $X$ receives the fifth message he does not know how to decrypt (in fact he can but he thinks he needs new
+    key, different from $K_{XY}$). When he receives the seventh message from $S$, $X$ knows which key to use in order to
+    decrypt the fifth message sent from $\textcolor{red}{I(Y)}$. So $X$ will decipher the fifth message and will find that
+    the he is the sender $\{|\textcolor{red}{X}, N_X|\}_{K_{XY}}$. He will know something is wrong and abort.
+
+    \noindent
+
+    We include the sender identity in the first message in order to cryptographically bind the message to its origin.
+    Although this verification was left implicit in the original specification as is common in \textit{Alice} \& \textit{Bob} notation.
+
 
 
 
