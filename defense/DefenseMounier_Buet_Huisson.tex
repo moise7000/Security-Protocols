@@ -1,0 +1,71 @@
+%! Author = ewan
+%! Date = 10/17/25
+
+% Preamble
+\documentclass[11pt]{article}
+
+% Packages
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{pdfpages}
+\usepackage{graphicx}
+\usepackage[toc,page]{appendix}
+\usepackage{caption}
+\usepackage{soul}
+\usepackage{csquotes}
+\usepackage[T1]{fontenc}
+
+
+% Document
+% Document
+\begin{document}
+
+    \title{
+            { \textbf{Security Protocols and Verification}} \\[1ex]
+        {\small Defense of Cryptographic Protocol}
+    }
+
+
+    \author{
+        Garance Frolla \\
+        Ely Marthouret \\
+        Ewan Decima\\ \\
+        Team: \textbf{ASKO OM8464A2}
+    }
+
+    \date{September / November 2025}
+
+
+    \maketitle
+    \tableofcontents
+    \newpage
+
+    \section{Attack from Mounier-Buet-Huisson}
+
+    \subsection{The attack}
+    You will find below a concise summary of your attack against our protocol.
+
+    \begin{enumerate}
+        \item $X \rightarrow Y: \{|X, N_X|\}_{K_{XY}}$
+        \item $X \rightarrow S : \{| Y, \tau, \lambda, K_{XY}|\}_{K_{XS}}$
+        \item $S \rightarrow I(Y): \{|X, \tau, \lambda, K_{XY}|\}_{K_{YS}}$
+        \item $I(Y) \rightarrow X: V_I$
+        \item $I(Y) \rightarrow X: \textcolor{red}{\{|X, N_X|\}_{K_{XY}}}$
+        \item $I(Y) \rightarrow S: \{|X, \tau, \lambda, K_{XY} |\}_{K_{YS}}$
+        \item $S \rightarrow X : \{| Y, \tau, \lambda, K_{XY}|\}_{K_{XS}}$
+        \item $X \rightarrow I(Y) : \{|N_X + 1|\}_{K_{XY}}$
+
+    \end{enumerate}
+    \subsection{Refutation}
+
+
+
+
+    \section{Conclusion}
+    We \underline{refuse this attack}, but we are ready to face another one.
+
+
+
+
+\end{document}
