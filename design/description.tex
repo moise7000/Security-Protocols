@@ -30,6 +30,7 @@ they will not be able to use it after its expiration. When $B$ receives this mes
 $t \geq \tau + \lambda$, then $B$ aborts.
 
 Otherwise, $B$ respond to the first message of $A$, he can decrypt $\{| \langle A, N_A \rangle |\}_{K_{AB}}$ with the session key.
+$B$ verifies that the $A$ in $\{| \langle A, N_A \rangle |\}_{K_{AB}}$ is the same compared to the first message he can now decrypt : $\{| \langle A,N_A \rangle |\}_{K_{AB}}$.
 Key confirmation lies in the fact that $B$ sends back $N_A + 1$ to $A$. In this way, $A$ knows that $B$ has successfully
 retrieved the key. This allows combining key confirmation with the challenge–response mechanism for the authentication
 of $B$ with respect to $A$. The transmitted data is structured as follows: $\{| N_A + 1|\}_{K_{AB}}$.
