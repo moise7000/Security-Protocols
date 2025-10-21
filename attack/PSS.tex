@@ -1,0 +1,80 @@
+%! Author = garance
+%! Date = 10/21/25
+
+% Fichier LaTeX décrivant l'attaque (version française)
+\documentclass[11pt]{article}
+
+% Packages
+\usepackage[french]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+
+\begin{document}
+
+
+\title{\textbf{Protocoles de sécurité et vérification} \\
+{\small \textit{attaque sur PSS}}}
+
+\author{Garance Frolla \\ Ely Marthouret \\ Ewan Decima \\\\ \textbf{Équipe : ASKO OM8464A2}}
+\date{Septembre / Novembre 2025}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Protocole étudié}
+
+Votre protocole:
+
+\begin{enumerate}
+    \item $B \rightarrow A : \{N_B,B\}_{pk(A)}$
+    \item $A \rightarrow B : \{K_{AB},A,N_A,N_B\}_{pk(B)}$
+    \item $B \rightarrow A : \{|\{B,N_A -1\}_{pk(A}|\}_{K_{AB}}$
+    \item $A \rightarrow B : \{|N_B -1|\}_{K_{AB}}$
+\end{enumerate}
+
+\bigskip
+\noindent
+L'intrus $I$ écoute les communications entre $A$ et $B$ et intercepte tous les termes. Avec le temps, on suppose que $I$ connaît une ancienne clé $K_{AB}^*$.
+
+\section{Description synthétique de l'attaque}
+
+\subsection{Hypothèses}
+\begin{itemize}
+    \item $I$ est capable d'intercepter et de relayer des messages 
+    \item $I$ a obtenu, lors d'une session précédente, une ancienne clé $K_{AB}^*$.
+    \item Les spécifications n'indiquent pas que les agents verifient la fraîcheur des Nonces à la réception. Les agents verifient uniquement que les Nonces finaux correspondent bien aux Nonces initiaux. Il n'est également pas vérifié que c'est une ancienne clé.
+
+    
+
+\end{itemize}
+
+\subsection{Déroulement de l'attaque}
+
+\textbf{Attaque : I rejoue une ancienne session en prenant le rôle de $B$. Les Nonces sont anciens et la clé $K_{AB}^*$ aussi}
+
+\begin{enumerate}
+    \item $I(B) \rightarrow A : \{\textcolor{red}{N_B^*},B\}_{pk(A)}$
+    \item $A \rightarrow I(B) : \{\textcolor{red}{K_{AB}^*},A,\textcolor{red}{N_A^*},\textcolor{red}{N_B^*}\}_{pk(B)}$
+    \item $I(B) \rightarrow A : \{|\{B,\textcolor{red}{N_A^* -1}\}_{pk(A}|\}_{\textcolor{red}{K_{AB}^*}}$
+    \item $A \rightarrow I(B) : \{|\textcolor{red}{N_B^* -1}|\}_{\textcolor{red}{K_{AB}^*}}$
+\end{enumerate}
+
+
+
+\section{Conséquences et conclusion}
+
+\noindent
+À la fin de l'attaque, $B$ croit avoir établi une communication sécurisée avec A pour la session. En réalité, la clé utilisée est une clé ancienne $K_{AB}^*$ supposée compromise.
+
+\begin{itemize}
+    \item $B$ pense détenir une clé $K_{AB}$ fraîche fournie par $A$ mais a en fait accepté $K_{AB}^*$ transmis par $I$.
+    \item $I$ peut lire toutes les communications ultérieures chiffrées avec $K_{AB}^*$.
+\end{itemize}
+
+\end{document}
