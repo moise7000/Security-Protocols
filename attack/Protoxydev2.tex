@@ -5,6 +5,7 @@
 \documentclass[11pt]{article}
 
 % Packages
+\usepackage[french]{babel}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{amsmath}
@@ -48,8 +49,10 @@ L'intrus $I$ écoute les communications entre $A$ et $B$ et intercepte tous les 
 \begin{itemize}
     \item $I$ est capable d'intercepter et de relayer des messages 
     \item $I$ a obtenu, lors d'une session précédente, une ancienne clé $K^*$.
-    \item Il est écrit dans vos spécifications :  "Protocol fails on any side because of : incorrect content of message (pattern matching fails), incorrect key used, incorrect Nonces, etc. (as seen in classes) - then the Protocol “state” goes back to the first state it can be in." \\ 
-    Mais vous ne dites pas que les agents verifient la fraîcheur des Nonces lorsqu'ils les reçoivent et ils ne vérifient pas non plus que c'est une ancienne clé ou pas (incorrect key peut juste faire référence au format ou de qui elle semble venir). Nous allons nous baser sur cette ambiguité.
+    \item Les spécifications indiquent :  "Protocol fails on any side because of : incorrect content of message (pattern matching fails), incorrect key used, incorrect Nonces, etc. (as seen in classes) - then the Protocol “state” goes back to the first state it can be in." \\ \\
+    Cependant il n'est pas écrit que les agents verifient la fraîcheur des Nonces à la réception. Cela signifie que les agents verifient que les Nonces finaux correspondent bien aux Nonces initiaux (incorrect key peut juste faire référence au format ou de qui elle semble venir). Il n'est également pas vérifié que c'est une ancienne clé.
+
+    
 
 \end{itemize}
 
