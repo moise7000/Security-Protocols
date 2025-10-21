@@ -1,0 +1,71 @@
+%! Author = garance
+%! Date = 10/21/25
+
+% Preamble
+\documentclass[11pt]{article}
+
+% Packages
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{pdfpages}
+\usepackage{graphicx}
+\usepackage[toc,page]{appendix}
+\usepackage{caption}
+\usepackage{soul}
+\usepackage{csquotes}
+\usepackage[T1]{fontenc}
+\usepackage{enumitem} % Pour personnaliser les listes
+
+% Document
+\begin{document}
+
+    \title{
+        { \textbf{Security Protocols and Verification}} \\[1ex]
+        {\small Defense of Cryptographic Protocol}
+    }
+
+
+    \author{
+        Garance Frolla \\
+        Ely Marthouret \\
+        Ewan Decima\\ \\
+        Team: \textbf{ASKO OM8464A2}
+    }
+
+    \date{September / November 2025}
+
+
+    \maketitle
+    \tableofcontents
+    \newpage
+
+    \section{Attack from PCI-2690}
+    
+    \subsection{Second Refutation: Nonce Reuse Detection}
+
+    Concerning the step \textbf{4.3. 5.} of your attack, even if the first refutation were ignored, your attack fails due to the protocol's specifications regarding nonce reuse.
+    
+    \begin{enumerate}[label=\arabic*., start=5]
+        \item \textbf{Bob B}: B receives Msg 3 from S at $t_{rejeu}$.
+        \item B decrypts the message with his key $K_{BS}$ and extracts $K_{AB}$ and $\tau$.
+        \item B verifies: $t_{rejeu} \geq \tau + \lambda$? This is false.
+        \item B accepts the message and uses the old key $K_{AB}$ to decrypt Msg 1 (replayed by Eve) and obtains the \textbf{old nonce $N_A$}.
+    \end{enumerate}
+
+    At this point, as stated in the protocol's description:
+    \begin{itemize}
+        \item \enquote{B checks also the validity of the first message}
+        \item \enquote{All agents can detect if a nonce has been reused. If an agent detects that a nonce is reused, the agent aborts.}
+    \end{itemize}
+    
+    Since Bob ($B$) has obtained the \textbf{old nonce $N_A$}, he detects a \textbf{nonce reuse} (the nonce from the replayed Msg 1 is a nonce from a previous, completed session).
+    
+    \paragraph{}
+    Therefore, \textbf{Bob immediately aborts the session}. Alice ($A$), not receiving any response ($B \rightarrow A$: Msg 4) in the expected time frame, will also consider the protocol to have been aborted. The attack fails at this step.
+
+
+    \section{Conclusion}
+    We \underline{refuse this attack}, but we are ready to face another one.
+
+\end{document}
