@@ -1,0 +1,77 @@
+%! Author = garance
+%! Date = 10/21/25
+
+% Fichier LaTeX décrivant l'attaque (version française)
+\documentclass[11pt]{article}
+
+% Packages
+\usepackage[french]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+
+\begin{document}
+
+
+\title{\textbf{Protocoles de sécurité et vérification} \\
+{\small \textit{attaque sur NOMITM}}}
+
+\author{Garance Frolla \\ Ely Marthouret \\ Ewan Decima \\\\ \textbf{Équipe : ASKO OM8464A2}}
+\date{Septembre / Novembre 2025}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Protocole étudié}
+
+Votre protocole:
+
+\begin{enumerate}
+    \item $A \rightarrow B : A,N_a$
+    \item $B \rightarrow A : \{B,N_b,N_a\}_{pub(A)}$
+    \item $A \rightarrow B : \{K_{AB},N_b,N_a,A\}_{pub(B)}$
+    \item $B \rightarrow A : H(K_{AB},N_a)$
+\end{enumerate}
+
+\bigskip
+\noindent
+L'intrus $I$ écoute les communications entre $A$ et $B$ et intercepte tous les termes. Avec le temps, on suppose que $I$ connaît une ancienne clé $K^*$.
+
+\section{Description synthétique de l'attaque}
+
+\subsection{Hypothèses}
+\begin{itemize}
+    \item $I$ est capable d'intercepter et de relayer des messages 
+    \item $I$ a obtenu, lors d'une session précédente, une ancienne clé $K^*$.
+    \item Les spécifications indiquent "4. B vérifie les nonces". Cependant il n'est pas écrit que les agents verifient la fraîcheur des Nonces à la réception. Cela signifie que les agents verifient que les Nonces finaux correspondent bien aux Nonces initiaux. Il n'est également pas vérifié que c'est une ancienne clé.
+
+\end{itemize}
+
+\subsection{Déroulement de l'attaque}
+
+\textbf{Attaque : I rejoue une ancienne session en prenant le rôle de $A$. Les Nonces sont anciens et la clé $K^*$ aussi}
+
+\begin{enumerate}
+    \item $I(A) \rightarrow B : A,\textcolor{red}{N_a^*}$
+    \item $B \rightarrow I(A) : \{B,\textcolor{red}{N_b^*},\textcolor{red}{N_a^*}\}_{pub(A)}$
+    \item $I(A) \rightarrow B : \{\textcolor{red}{K_{AB}},\textcolor{red}{N_b^*},\textcolor{red}{N_a^*},A\}_{pub(B)}$
+    \item $B \rightarrow I(A) : H(\textcolor{red}{K_{AB}},\textcolor{red}{N_a^*})$
+\end{enumerate}
+
+
+\section{Conséquences et conclusion}
+
+\noindent
+À la fin de l'attaque, $B$ croit avoir établi une communication sécurisée avec A pour la session. En réalité, la clé utilisée est une clé ancienne $K^*$ supposée compromise.
+
+\begin{itemize}
+    \item $B$ pense détenir une clé $K$ fraîche fournie par $A$ mais a en fait accepté $K^*$ transmis par $I$.
+    \item $I$ peut lire toutes les communications ultérieures chiffrées avec $K^*$.
+\end{itemize}
+
+\end{document}
