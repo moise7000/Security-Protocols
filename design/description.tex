@@ -27,7 +27,8 @@ $B$ receives the message $\{| \langle A, \tau, \lambda, K_{AB} \rangle |\}_{K_{B
 He also learns the validity period $\lambda$, starting from time $\tau$, during which $A$ will accept his response.
 This measure provides protection against ticket theft. Indeed, even if an attacker manages to intercept a ticket,
 they will not be able to use it after its expiration. When $B$ receives this message at time $t$, if
-$t \geq \tau + \lambda$, then $B$ aborts.
+$t \geq \tau + \lambda$, then $B$ aborts. $B$ checks also the validity of the first message. He compares the identity contained in
+the message sent by $S$ and the one contained in the first message. If they don't match, $B$ abort.
 
 Otherwise, $B$ respond to the first message of $A$, he can decrypt $\{| \langle A, N_A \rangle |\}_{K_{AB}}$ with the session key.
 $B$ verifies that the $A$ in $\{| \langle A, N_A \rangle |\}_{K_{AB}}$ is the same compared to the first message he can now decrypt : $\{| \langle A,N_A \rangle |\}_{K_{AB}}$.

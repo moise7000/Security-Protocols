@@ -4,18 +4,31 @@ Both $A$ and $B$ also know their respective symmetric keys ($K_{AS}$ and $K_{BS}
 and there clocks are synchronised on the $S$ one. 
 Each participant is aware of the chosen protocol and the following specifications.
 
+\vspace{1cm}
+
 Both symmetric and asymmetric encryption schemes are assumed not to alter the size of a message.
 Any message received with an invalid length is discarded.
 Nonces are assumed to be randomly chosen from a sufficiently large space such that collisions never occur.
-The encryption primitives are assumed to ensure that an agent attempting to decrypt a message with an incorrect key, or a message that was not encrypted at all, can detect this condition.
+The encryption primitives are assumed to ensure that an agent attempting to decrypt a message with an incorrect key,
+or a message that was not encrypted at all, can detect this condition.
 In such cases, the message must be treated as invalid.
+
+\vspace{1cm}
 
 Each value possesses a physical representation that encodes its type.
 The type may be a name ($A$, $B$, …), a key ($K$, $K_{AS}$, …), a nonce ($N_{A}$, …), a timestamp ($\lambda$), or a duration ($\tau$).
 This ensures that values of different types cannot be confused with one another.
 Whenever a value is received with an incorrect type, the corresponding instance of the protocol is aborted.
 
+\vspace{1cm}
+
+All agents can detect if a nonce has been reused. If an agent detects that a nonce is reused, the agent aborts.
+
+\vspace{1cm}
+
 An agent $C$ is not permitted to initiate a new session if another session initiated by $C$ is still active.
 To begin a new session, $C$ must wait for the termination of the previous one—whether by normal completion of the protocol, by timeout, or by invalidation of any step.
+
+\vspace{1cm}
 
 An agent $C$ will abort the Protocol run if it receives a message that uses symmetric encryption with the wrong key. For example : $K_{IS}$ instead of $K_{CS}$.
