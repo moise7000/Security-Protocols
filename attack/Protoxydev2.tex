@@ -1,0 +1,79 @@
+%! Author = garance
+%! Date = 10/21/25
+
+% Fichier LaTeX décrivant l'attaque (version française)
+\documentclass[11pt]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+
+\begin{document}
+
+
+\title{\textbf{Protocoles de sécurité et vérification} \\
+{\small \textit{attaque sur PROTOxyde d'alCO(o)L}}}
+
+\author{Garance Frolla \\ Ely Marthouret \\ Ewan Decima \\\\ \textbf{Équipe : ASKO OM8464A2}}
+\date{Septembre / Novembre 2025}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Protocole étudié}
+
+Votre protocole:
+
+\begin{enumerate}
+    \item $A \rightarrow S : A, \{|N_A,B|\}_{K\{AS\}}$
+    \item $S \rightarrow B : S, \{|N_A,A|\}_{K\{BS\}}$
+    \item $B \rightarrow A : B, \{N_A,N_B\}_{pub(A)}$
+    \item $A \rightarrow B : A, \{K,N_B\}_{pub(B)}$
+    \item $B \rightarrow A : B,N_B$
+\end{enumerate}
+
+\bigskip
+\noindent
+L'intrus $I$ écoute les communications entre $A$ et $B$ et intercepte tous les termes. Avec le temps, on suppose que $I$ connaît une ancienne clé $K^*$.
+
+\section{Description synthétique de l'attaque}
+
+\subsection{Hypothèses}
+\begin{itemize}
+    \item $I$ est capable d'intercepter et de relayer des messages 
+    \item $I$ a obtenu, lors d'une session précédente, une ancienne clé $K^*$.
+    \item Il est écrit dans vos spécifications :  "Protocol fails on any side because of : incorrect content of message (pattern matching fails), incorrect key used, incorrect Nonces, etc. (as seen in classes) - then the Protocol “state” goes back to the first state it can be in." \\ 
+    Mais vous ne dites pas que les agents verifient la fraîcheur des Nonces lorsqu'ils les reçoivent et ils ne vérifient pas non plus que c'est une ancienne clé ou pas (incorrect key peut juste faire référence au format ou de qui elle semble venir). Nous allons nous baser sur cette ambiguité.
+
+\end{itemize}
+
+\subsection{Déroulement de l'attaque}
+
+\textbf{Attaque : I rejoue une ancienne session en prenant le rôle de $A$. Les Nonces sont anciens et la clé $K^*$ aussi}
+
+\begin{enumerate}
+    \item $I(A) \rightarrow S : A, \{|\textcolor{red}{N_A^*},B|\}_{K\{AS\}}$
+    \item $S \rightarrow B : S, \{|\textcolor{red}{N_A^*},A|\}_{K\{BS\}}$
+    \item $B \rightarrow I(A) : B, \{\textcolor{red}{N_A^*},\textcolor{red}{N_B^*}\}_{pub(A)}$
+    \item $I(A) \rightarrow B : A, \{\textcolor{red}{K^*},\textcolor{red}{N_B^*}\}_{pub(B)}$
+    \item $B \rightarrow A : B,\textcolor{red}{N_B^*}$
+\end{enumerate}
+
+
+\section{Conséquences et conclusion}
+
+\noindent
+À la fin de l'attaque, $B$ croit avoir établi une communication sécurisée avec A pour la session. En réalité, la clé utilisée est une clé ancienne $K^*$ supposée compromise.
+
+\begin{itemize}
+    \item $B$ pense détenir une clé $K$ fraîche fournie par $A$ mais a en fait accepté $K^*$ transmis par $I$.
+    \item $I$ peut lire toutes les communications ultérieures chiffrées avec $K^*$.
+\end{itemize}
+
+\end{document}
