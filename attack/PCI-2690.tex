@@ -1,0 +1,61 @@
+%! Author = garance
+%! Date = 10/21/25
+
+% Fichier LaTeX décrivant l'attaque (version française)
+\documentclass[11pt]{article}
+
+% Packages
+\usepackage[french]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+
+\begin{document}
+
+
+\title{\textbf{Protocoles de sécurité et vérification} \\
+{\small \textit{attaque sur PCI-2690}}}
+
+\author{Garance Frolla \\ Ely Marthouret \\ Ewan Decima \\\\ \textbf{Équipe : ASKO OM8464A2}}
+\date{Septembre / Novembre 2025}
+
+\maketitle
+\tableofcontents
+\newpage
+
+
+\section{Description synthétique de l'attaque}
+
+L'attaquant $I$ écoute les communications entre $A$ et $B$ et intercepte tous les termes. L'attaquant $I$ établit un nombre très conséquent de communication avec $A$ et $B$, ainsi $S$ est sollicité 2 fois plus que $A$ ou $B$. Avec le temps, on suppose que $I$ connaît une ancienne clé $K^*$ et que les caches des agents $A$ et $B$ sont pleins et donc qu'ils se vident au fur et à mesure.
+
+\subsection{Hypothèses}
+\begin{itemize}
+    \item $I$ est capable d'intercepter et de relayer des messages 
+    \item $I$ a obtenu, lors d'une session précédente, une ancienne clé $K^*$.
+    \item Les caches de $A$ et $B$ ne sont pas infinis et se suppriment leurs données au fur et à mesure
+
+    
+
+\end{itemize}
+
+\subsection{Déroulement de l'attaque}
+
+\textbf{Attaque : I rejoue une ancienne session en prenant le rôle de $A$. Les Nonces sont anciens et la clé $K^*$ aussi mais $A$ et $B$ ont été suffisament sollicités pour que les anciens Nonces ne soient plus dans le cache des utilisateurs}
+
+
+
+\section{Conséquences et conclusion}
+
+\noindent
+À la fin de l'attaque, $B$ croit avoir établi une communication sécurisée avec A pour la session. En réalité, la clé utilisée est une clé ancienne $K^*$ supposée compromise.
+
+\begin{itemize}
+    \item $B$ pense détenir une clé $K$ fraîche fournie par $A$ mais a en fait accepté $K^*$ transmis par $I$.
+    \item $I$ peut lire toutes les communications ultérieures chiffrées avec $K^*$.
+\end{itemize}
+
+\end{document}
