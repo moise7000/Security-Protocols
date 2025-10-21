@@ -30,13 +30,17 @@
 
 \section{Description synthétique de l'attaque}
 
-L'attaquant $I$ écoute les communications entre $A$ et $B$ et intercepte tous les termes. L'attaquant $I$ établit un nombre très conséquent de communication avec $A$ et $B$, ainsi $S$ est sollicité 2 fois plus que $A$ ou $B$. Avec le temps, on suppose que $I$ connaît une ancienne clé $K^*$ et que les caches des agents $A$ et $B$ sont pleins et donc qu'ils se vident au fur et à mesure.
+L'attaquant $I$ écoute les communications entre $A$ et $B$ et intercepte tous les termes échangés. L'attaquant $I$ établit
+un nombre conséquent de communications légitimes avec $A$ et avec $B$, $S$ étant sollicité deux fois plus, afin de
+surcharger les caches de $A$, $B$ et $S$. On suppose que $I$ connaît une ancienne clé $K^*$ de session entre $A$ et $B$.
+De plus, on suppose qu'au moment de l'attaque les caches des agents $A$ et $B$ ne contiennent plus les nonces
+précédemment interceptés.
 
 \subsection{Hypothèses}
 \begin{itemize}
     \item $I$ est capable d'intercepter et de relayer des messages 
     \item $I$ a obtenu, lors d'une session précédente, une ancienne clé $K^*$.
-    \item Les caches de $A$ et $B$ ne sont pas infinis et se suppriment leurs données au fur et à mesure
+    \item Les caches de $A$ et $B$ ne sont limités et suppriment leurs données au fur et à mesure.
 
     
 
@@ -44,18 +48,24 @@ L'attaquant $I$ écoute les communications entre $A$ et $B$ et intercepte tous l
 
 \subsection{Déroulement de l'attaque}
 
-\textbf{Attaque : I rejoue une ancienne session en prenant le rôle de $A$. Les Nonces sont anciens et la clé $K^*$ aussi mais $A$ et $B$ ont été suffisament sollicités pour que les anciens Nonces ne soient plus dans le cache des utilisateurs}
+$I$ intercepte une communication légitime entre $A$ et $B$. $I$ établit un nombre $x$ de communications avec $A$
+(respectivement $B$) afin de surcharger son cache. On suppose que les caches des participants ont une capacité de
+$\frac{x}{3}$. À partir de ce moment, le cache de $A$ (respectivement $B$, $S$) est dépourvu tous les nonces précédent
+les communication initiées par $I$. Ensuite, $I$ se faisant passer pour $A$, rejoue la communication entre $A$ et $B$.
+
+
 
 
 
 \section{Conséquences et conclusion}
 
 \noindent
-À la fin de l'attaque, $B$ croit avoir établi une communication sécurisée avec A pour la session. En réalité, la clé utilisée est une clé ancienne $K^*$ supposée compromise.
+À la fin de l'attaque, $B$ croit avoir établi une communication sécurisée avec A. En réalité, la clé
+utilisée est une ancienne clé ($K^*$) connue par $I$.
 
 \begin{itemize}
     \item $B$ pense détenir une clé $K$ fraîche fournie par $A$ mais a en fait accepté $K^*$ transmis par $I$.
-    \item $I$ peut lire toutes les communications ultérieures chiffrées avec $K^*$.
+    \item $I$ peut lire toutes les communications chiffrées avec $K^*$.
 \end{itemize}
 
 \end{document}
