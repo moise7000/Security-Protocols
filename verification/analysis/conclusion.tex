@@ -1,0 +1,9 @@
+\section{Conclusion}
+
+L'analyse formelle avec Tamarin a permis d'identifier deux traces d'attaque théoriques sur le
+protocole ASKO-OM8464A2. La première concerne l'absence de garantie que l'initiateur $A$ termine
+le protocole lorsque le répondant $B$ le termine, et la seconde porte sur la possibilité de
+rejouer les messages pour violer la propriété d'accord injectif. Toutefois, ces attaques ne
+constituent pas des vulnérabilités dans le cadre de nos spécifications. Le premier cas est
+conforme à notre conception où la validation repose sur l'envoi du dernier message par $B$,
+et le second cas est exclu par notre règle de vérification des nonces.

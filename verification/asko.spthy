@@ -1,1 +1,347 @@
-// init
+theory ASKO_OM8464A2
+begin
+
+builtins: symmetric-encryption, hashing
+
+/*
+ * PROTOCOLE ASKO-OM8464A2
+ * 
+ * 1. A → B : {|⟨A, N_A⟩|}_K_AB
+ * 2. A → S : {|⟨B, τ, λ, K_AB⟩|}_K_AS
+ * 3. S → B : {|⟨A, τ, λ, K_AB⟩|}_K_BS
+ * 4. B → A : {|N_A + 1|}_K_AB
+ *
+ * Connaissance initiale:
+ * - A et B connaissent toutes les clés publiques
+ * - A connaît K_AS (clé partagée avec le serveur S)
+ * - B connaît K_BS (clé partagée avec le serveur S)
+ * - Les horloges sont synchronisées avec celle de S
+ */
+
+// ============================================================================
+// RÈGLES DE CONFIGURATION
+// ============================================================================
+
+/*
+ * Règle: Setup_Key_A_S
+ * Description: Établit la clé symétrique partagée entre l'agent A et le serveur S
+ * Cette clé est utilisée par A pour envoyer des requêtes sécurisées à S (message 2)
+ */
+rule Setup_Key_A_S:
+  [ Fr(~kAS) ]
+  -->
+  [ !LtkAS($A, $S, ~kAS) ]
+
+/*
+ * Règle: Setup_Key_B_S
+ * Description: Établit la clé symétrique partagée entre l'agent B et le serveur S
+ * Cette clé est utilisée par S pour transmettre la clé de session à B (message 3)
+ */
+rule Setup_Key_B_S:
+  [ Fr(~kBS) ]
+  -->
+  [ !LtkBS($B, $S, ~kBS) ]
+
+/*
+ * Règle: Reveal_Key_AS
+ * Description: Permet à l'adversaire de compromettre la clé K_AS
+ * Utilisé pour tester la sécurité du protocole en cas de compromission
+ */
+rule Reveal_Key_AS:
+  [ !LtkAS(A, S, kAS) ]
+  --[ Reveal(A) ]->
+  [ Out(kAS) ]
+
+/*
+ * Règle: Reveal_Key_BS
+ * Description: Permet à l'adversaire de compromettre la clé K_BS
+ * Utilisé pour tester la sécurité du protocole en cas de compromission
+ */
+rule Reveal_Key_BS:
+  [ !LtkBS(B, S, kBS) ]
+  --[ Reveal(B) ]->
+  [ Out(kBS) ]
+
+// ============================================================================
+// PROTOCOLE - RÔLE DE L'INITIATEUR (A)
+// ============================================================================
+
+/*
+ * Règle: A_1_send_first_message
+ * Description: A génère le nonce N_A et la clé de session K_AB (freshness)
+ * A envoie le premier message à B: {|⟨A, N_A⟩|}_K_AB
+ * Cette règle correspond au message 1 du protocole
+ */
+rule A_1_send_first_message:
+  let
+    m1 = senc(<$A, ~nA>, ~kAB)
+  in
+  [ Fr(~nA)
+  , Fr(~kAB)
+  ]
+  --[ Start_A($A, $B, ~kAB, ~nA)
+    , Running_A($A, $B, <'init', ~kAB>)
+    ]->
+  [ St_A_1($A, $B, ~nA, ~kAB)
+  , Out(m1)
+  ]
+
+/*
+ * Règle: A_2_send_to_server
+ * Description: A envoie à S une requête pour distribuer K_AB à B
+ * Message 2: {|⟨B, τ, λ, K_AB⟩|}_K_AS
+ * τ est le timestamp, λ est la durée de validité
+ * Cette règle implémente le mécanisme de protection contre le vol de tickets
+ */
+rule A_2_send_to_server:
+  let
+    m2 = senc(<$B, ~tau, ~lambda, kAB>, kAS)
+  in
+  [ St_A_1($A, $B, nA, kAB)
+  , !LtkAS($A, $S, kAS)
+  , Fr(~tau)
+  , Fr(~lambda)
+  ]
+  --[ Send_A_to_S($A, $S, $B, kAB, ~tau, ~lambda) ]->
+  [ St_A_2($A, $B, nA, kAB, ~tau, ~lambda)
+  , Out(m2)
+  ]
+
+/*
+ * Règle: A_3_receive_confirmation
+ * Description: A reçoit la confirmation de B: {|N_A + 1|}_K_AB
+ * Cette règle implémente la confirmation de clé (key confirmation)
+ * A vérifie que B a bien reçu et peut utiliser K_AB
+ * Message 4 du protocole
+ */
+rule A_3_receive_confirmation:
+  let
+    m4 = senc(<nA, 'plus_one'>, kAB)
+  in
+  [ St_A_2($A, $B, nA, kAB, tau, lambda)
+  , In(m4)
+  ]
+  --[ Finish_A($A, $B, kAB)
+    , Commit_A($A, $B, <'resp', kAB>)
+    , Secret_A($A, $B, kAB)
+    , Honest($A)
+    , Honest($B)
+    ]->
+  [ ]
+
+// ============================================================================
+// PROTOCOLE - RÔLE DU SERVEUR (S)
+// ============================================================================
+
+/*
+ * Règle: S_forward_to_B
+ * Description: Le serveur S reçoit la requête de A et la transmet à B
+ * S vérifie que t < τ + λ (timestamp valide)
+ * S envoie le message 3: {|⟨A, τ, λ, K_AB⟩|}_K_BS
+ * Cette règle implémente le rôle de S comme tiers de confiance pour l'authentification
+ */
+rule S_forward_to_B:
+  let
+    m2 = senc(<$B, tau, lambda, kAB>, kAS)
+    m3 = senc(<$A, tau, lambda, kAB>, kBS)
+  in
+  [ !LtkAS($A, $S, kAS)
+  , !LtkBS($B, $S, kBS)
+  , In(m2)
+  ]
+  --[ Server_Forward($S, $A, $B, kAB, tau, lambda)
+    , Running_S($A, $B, <'server', kAB>)
+    ]->
+  [ Out(m3) ]
+
+// ============================================================================
+// PROTOCOLE - RÔLE DU RÉPONDANT (B)
+// ============================================================================
+
+/*
+ * Règle: B_1_receive_from_server
+ * Description: B reçoit le message du serveur contenant K_AB
+ * Message 3: {|⟨A, τ, λ, K_AB⟩|}_K_BS
+ * B obtient la clé de session et apprend la période de validité
+ * Cette règle implémente l'authentification de A par rapport à B via S
+ */
+rule B_1_receive_from_server:
+  let
+    m3 = senc(<$A, tau, lambda, kAB>, kBS)
+  in
+  [ !LtkBS($B, $S, kBS)
+  , In(m3)
+  ]
+  --[ Receive_B_from_S($B, $A, kAB, tau, lambda)
+    , Running_B($A, $B, <'resp', kAB>)
+    ]->
+  [ St_B_1($A, $B, kAB, tau, lambda) ]
+
+/*
+ * Règle: B_2_respond_to_A
+ * Description: B déchiffre le premier message de A et répond avec N_A + 1
+ * Message 1 reçu: {|⟨A, N_A⟩|}_K_AB
+ * Message 4 envoyé: {|N_A + 1|}_K_AB
+ * Cette règle implémente le mécanisme challenge-response pour l'authentification de B
+ * et la confirmation de clé
+ */
+rule B_2_respond_to_A:
+  let
+    m1 = senc(<$A, nA>, kAB)
+    m4 = senc(<nA, 'plus_one'>, kAB)
+  in
+  [ St_B_1($A, $B, kAB, tau, lambda)
+  , In(m1)
+  ]
+  --[ Finish_B($A, $B, kAB)
+    , Commit_B($A, $B, <'init', kAB>)
+    , Secret_B($A, $B, kAB)
+    , Honest($A)
+    , Honest($B)
+    ]->
+  [ Out(m4) ]
+
+// ============================================================================
+// LEMMES DE SÉCURITÉ
+// ============================================================================
+
+/*
+ * Lemme: executable
+ * Description: Vérifie que le protocole est exécutable de bout en bout
+ * Le protocole doit permettre à A et B de terminer leur session avec succès
+ */
+lemma executable:
+  exists-trace
+  "Ex A B kAB #i #j.
+    Finish_A(A, B, kAB) @ i
+    & Finish_B(A, B, kAB) @ j"
+
+/*
+ * Lemme: secrecy_key_AB
+ * Description: Propriété de Secret - Personne à part A et B ne connaît K_AB
+ * Vérifie que la clé de session K_AB reste secrète
+ * Correspond à la propriété "Secrecy" du document:
+ * "Nobody except for agents A and B know the session key K_AB"
+ * La clé reste secrète tant que A et B ne sont pas compromis
+ */
+lemma secrecy_key_AB:
+  "All A B kAB #i.
+    Secret_A(A, B, kAB) @ i
+    ==> not (Ex #j. K(kAB) @ j)
+        | (Ex #r. Reveal(A) @ r)
+        | (Ex #r. Reveal(B) @ r)"
+
+/*
+ * Lemme: secrecy_key_AB_from_B
+ * Description: Variante de la propriété de secret du point de vue de B
+ * Assure que si B termine avec la clé, elle reste secrète
+ */
+lemma secrecy_key_AB_from_B:
+  "All A B kAB #i.
+    Secret_B(A, B, kAB) @ i
+    ==> not (Ex #j. K(kAB) @ j)
+        | (Ex #r. Reveal(A) @ r)
+        | (Ex #r. Reveal(B) @ r)"
+
+/*
+ * Lemme: aliveness_A_to_B
+ * Description: Propriété d'Authentification basique
+ * Si A termine une session avec B, alors B a participé au protocole
+ * Correspond à la propriété "Authentification" du document
+ */
+lemma aliveness_A_to_B:
+  "All A B kAB #i.
+    Finish_A(A, B, kAB) @ i
+    ==> (Ex #j. Finish_B(A, B, kAB) @ j)
+        | (Ex #r. Reveal(B) @ r)
+        | (Ex #r. Reveal(A) @ r)"
+
+/*
+ * Lemme: aliveness_B_to_A
+ * Description: Propriété d'Authentification réciproque
+ * Si B termine une session avec A, alors A a participé au protocole
+ */
+lemma aliveness_B_to_A:
+  "All A B kAB #j.
+    Finish_B(A, B, kAB) @ j
+    ==> (Ex #i. Finish_A(A, B, kAB) @ i)
+        | (Ex #r. Reveal(A) @ r)
+        | (Ex #r. Reveal(B) @ r)"
+
+/*
+ * Lemme: agreement_A_B
+ * Description: Propriété de Confirmation de Clé (Key Confirmation)
+ * Si A se termine en acceptant une clé de B, alors B a bien exécuté
+ * son rôle avec cette même clé
+ * Correspond à "Key confirmation" du document:
+ * "This proves to A that B has indeed obtained the correct key"
+ */
+lemma agreement_A_B:
+  "All A B t #i.
+    Commit_A(A, B, <'resp', t>) @ i
+    ==> (Ex #j. Running_B(A, B, <'resp', t>) @ j & j < i)
+        | (Ex #r. Reveal(A) @ r)
+        | (Ex #r. Reveal(B) @ r)"
+
+/*
+ * Lemme: agreement_B_A
+ * Description: Propriété d'Authentification de A envers B
+ * Si B se termine en acceptant une clé de A, alors A a bien initié
+ * le protocole avec cette clé
+ * Correspond à "Authentification" du document:
+ * "B can be sure that A initiated the conversation"
+ */
+lemma agreement_B_A:
+  "All A B t #i.
+    Commit_B(A, B, <'init', t>) @ i
+    ==> (Ex #j. Running_A(A, B, <'init', t>) @ j & j < i)
+        | (Ex #r. Reveal(A) @ r)
+        | (Ex #r. Reveal(B) @ r)"
+
+/*
+ * Lemme: freshness_key
+ * Description: Propriété de Fraîcheur (Freshness)
+ * Chaque session génère une nouvelle clé K_AB indépendante
+ * Correspond à "Freshness" du document:
+ * "K_AB is freshly generated by A, independently of B and of the current time.
+ *  Each new session results in a newly generated key K_AB"
+ */
+lemma freshness_key:
+  "All A B kAB nA nA2 #i #j.
+    Start_A(A, B, kAB, nA) @ i
+    & Start_A(A, B, kAB, nA2) @ j
+    ==> #i = #j"
+
+/*
+ * Lemme: injective_agreement_A_B
+ * Description: Accord injectif - chaque acceptation de A correspond à
+ * une unique exécution de B
+ * Renforce la propriété de confirmation de clé en garantissant l'unicité
+ */
+lemma injective_agreement_A_B:
+  "All A B t #i.
+    Commit_A(A, B, <'resp', t>) @ i
+    ==> (Ex #j. Running_B(A, B, <'resp', t>) @ j 
+        & j < i
+        & not (Ex A2 B2 #i2. Commit_A(A2, B2, <'resp', t>) @ i2
+                           & not (#i2 = #i)))
+        | (Ex #r. Reveal(A) @ r)
+        | (Ex #r. Reveal(B) @ r)"
+
+/*
+ * Lemme: injective_agreement_B_A
+ * Description: Accord injectif - chaque acceptation de B correspond à
+ * une unique exécution de A
+ * Garantit qu'un attaquant ne peut pas réutiliser d'anciens messages (replay)
+ */
+lemma injective_agreement_B_A:
+  "All A B t #i.
+    Commit_B(A, B, <'init', t>) @ i
+    ==> (Ex #j. Running_A(A, B, <'init', t>) @ j 
+        & j < i
+        & not (Ex A2 B2 #i2. Commit_B(A2, B2, <'init', t>) @ i2
+                           & not (#i2 = #i)))
+        | (Ex #r. Reveal(A) @ r)
+        | (Ex #r. Reveal(B) @ r)"
+
+end

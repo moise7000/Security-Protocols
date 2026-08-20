@@ -1,0 +1,634 @@
+theory NOMITM_Secure_Analysis begin
+
+// Function signature and definition of the equational theory E
+
+functions: adec/2, aenc/2, fst/1, h/1, pair/2, pk/1, snd/1
+equations:
+    adec(aenc(x.1, pk(x.2)), x.2) = x.1,
+    fst(<x.1, x.2>) = x.1,
+    snd(<x.1, x.2>) = x.2
+
+
+
+
+
+
+
+
+
+rule (modulo E) Register_pk:
+   [ Fr( ~ltkX ) ]
+  -->
+   [ !Ltk( $X, ~ltkX ), !Pk( $X, pk(~ltkX) ), Out( pk(~ltkX) ) ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) Reveal_ltk:
+   [ !Ltk( A, ltkA ) ] --[ Reveal( A ) ]-> [ Out( ltkA ) ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) Init_1:
+   [ Fr( ~na ) ]
+  --[ Create_I( $A, ~na ), Generate( ~na ) ]->
+   [ Out( <$A, ~na> ), St_A_1( $A, $B, ~na ) ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) Resp_1:
+   [ In( <A, na> ), Fr( ~nb ), !Pk( A, pkA ) ]
+  --[
+  AUTO_OUT_TERM_1_0_0_1_0__Init_2( aenc(<$B, ~nb, na>, pkA) ),
+  Running_R( $B, A, <na, ~nb> ), Generate( ~nb ), Receive_Nonce( na ),
+  Aliveness_R_witness( $B )
+  ]->
+   [ Out( aenc(<$B, ~nb, na>, pkA) ), St_B_1( $B, A, na, ~nb ) ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) Init_2:
+   [
+   St_A_1( $A, $B, ~na ), In( aenc(<$B, nb, ~na>, pk(~ltkA)) ),
+   !Ltk( $A, ~ltkA ), !Pk( $B, pkB ), Fr( ~kab )
+   ]
+  --[
+  AUTO_IN_TERM_1_0_0_1_0__Init_2( aenc(<$B, nb, ~na>, pk(~ltkA)), nb ),
+  Commit_I( $A, $B, <~na, nb>, ~kab ),
+  Running_I( $A, $B, <~na, nb>, ~kab ), Secret( $A, $B, ~kab ),
+  Generate( ~kab ), Receive_Nonce( nb ), Aliveness_I_witness( $A )
+  ]->
+   [ Out( aenc(<~kab, nb, ~na, $A>, pkB) ), St_A_2( $A, $B, ~na, nb, ~kab )
+   ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) Resp_2:
+   [
+   St_B_1( $B, A, na, ~nb ), In( aenc(<kab, ~nb, na, A>, pk(~ltkB)) ),
+   !Ltk( $B, ~ltkB )
+   ]
+  --[
+  Commit_R( $B, A, <na, ~nb>, kab ), Secret( $B, A, kab ),
+  Receive_Key( kab ), Finished_R( $B )
+  ]->
+   [ Out( h(<kab, na>) ) ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) Init_3:
+   [ St_A_2( $A, $B, ~na, nb, ~kab ), In( h(<~kab, ~na>) ) ]
+  --[ Finished_I( $A, $B, ~kab ) ]->
+   [ ]
+
+  /* has exactly the trivial AC variant */
+
+lemma executable:
+  exists-trace
+  "∃ A B k #i #j.
+    (((Finished_I( A, B, k ) @ #i) ∧ (Finished_R( B ) @ #j)) ∧
+     (¬(∃ #r. Reveal( A ) @ #r))) ∧
+    (¬(∃ #r. Reveal( B ) @ #r))"
+/*
+guarded formula characterizing all satisfying traces:
+"∃ A B k #i #j.
+  (Finished_I( A, B, k ) @ #i) ∧ (Finished_R( B ) @ #j)
+ ∧
+  (∀ #r. (Reveal( A ) @ #r) ⇒ ⊥) ∧ (∀ #r. (Reveal( B ) @ #r) ⇒ ⊥)"
+*/
+simplify
+solve( St_A_2( $A, $B, ~na, nb, ~kab ) ▶₀ #i )
+  case Init_2
+  solve( St_B_1( $B, A.1, na.1, ~nb.1 ) ▶₀ #j )
+    case Resp_1
+    solve( !Ltk( $B, ~ltkB ) ▶₂ #j )
+      case Register_pk
+      solve( !KU( h(<~kab, ~na>) ) @ #vk )
+        case Resp_2
+        solve( !KU( aenc(<kab.1, ~nb.1, na.1, $X>, pk(~ltkB)) ) @ #vk.1 )
+          case Init_2
+          solve( !KU( aenc(<$B, nb, ~na>, pk(~ltkA)) ) @ #vk.2 )
+            case Resp_1
+            solve( !KU( aenc(<~kab, ~nb.2, ~na, $X.1>, pk(~ltkB.1)) ) @ #vk.6 )
+              case Init_2
+              solve( !KU( aenc(<$B, ~nb.1, ~na.1>, pk(~ltkA.1)) ) @ #vk.10 )
+                case Resp_1
+                solve( !KU( ~na ) @ #vk.10 )
+                  case Init_1
+                  solve( !KU( ~na.1 ) @ #vk.8 )
+                    case Init_1
+                    SOLVED // trace found
+                  qed
+                qed
+              qed
+            qed
+          qed
+        qed
+      qed
+    qed
+  qed
+qed
+
+lemma secrecy_Kab:
+  all-traces
+  "∀ A B k #i.
+    (Secret( A, B, k ) @ #i) ⇒
+    (((¬(∃ #j. K( k ) @ #j)) ∨ (∃ #r. Reveal( A ) @ #r)) ∨
+     (∃ #r. Reveal( B ) @ #r))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ A B k #i.
+  (Secret( A, B, k ) @ #i)
+ ∧
+  (∃ #j. (K( k ) @ #j)) ∧
+  (∀ #r. (Reveal( A ) @ #r) ⇒ ⊥) ∧
+  (∀ #r. (Reveal( B ) @ #r) ⇒ ⊥)"
+*/
+simplify
+solve( Secret( A, B, k ) @ #i )
+  case Init_2
+  solve( St_A_1( $A, $B, ~na ) ▶₀ #i )
+    case Init_1
+    solve( !Ltk( $A, ~ltkA ) ▶₂ #i )
+      case Register_pk
+      solve( !Pk( $B, pkB ) ▶₃ #i )
+        case Register_pk
+        solve( !KU( ~kab ) @ #vk )
+          case Init_2
+          solve( !KU( ~ltkX ) @ #vk.2 )
+            case Reveal_ltk
+            by contradiction /* from formulas */
+          qed
+        qed
+      qed
+    qed
+  qed
+next
+  case Resp_2
+  solve( St_B_1( $B, B.1, na, ~nb ) ▶₀ #i )
+    case Resp_1
+    solve( !Ltk( $B, ~ltkB ) ▶₂ #i )
+      case Register_pk
+      solve( !KU( aenc(<k, ~nb, na, $X>, pk(~ltkB)) ) @ #vk.1 )
+        case Init_2
+        solve( !KU( ~kab ) @ #vk.1 )
+          case Init_2
+          solve( !KU( ~ltkB ) @ #vk.6 )
+            case Reveal_ltk
+            by contradiction /* from formulas */
+          qed
+        qed
+      next
+        case c_aenc
+        solve( !KU( ~nb ) @ #vk.9 )
+          case Init_2
+          solve( !KU( ~ltkX.1 ) @ #vk.11 )
+            case Reveal_ltk
+            by contradiction /* from formulas */
+          qed
+        next
+          case Resp_1
+          solve( !KU( ~ltkX ) @ #vk.10 )
+            case Reveal_ltk
+            by contradiction /* from formulas */
+          qed
+        qed
+      qed
+    qed
+  qed
+qed
+
+lemma secrecy_Kab_PFS:
+  all-traces
+  "∀ A B k #i.
+    (Secret( A, B, k ) @ #i) ⇒
+    (((¬(∃ #j. K( k ) @ #j)) ∨ (∃ #r. (Reveal( A ) @ #r) ∧ (#r < #i))) ∨
+     (∃ #r. (Reveal( B ) @ #r) ∧ (#r < #i)))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ A B k #i.
+  (Secret( A, B, k ) @ #i)
+ ∧
+  (∃ #j. (K( k ) @ #j)) ∧
+  (∀ #r. (Reveal( A ) @ #r) ⇒ ¬(#r < #i)) ∧
+  (∀ #r. (Reveal( B ) @ #r) ⇒ ¬(#r < #i))"
+*/
+simplify
+solve( Secret( A, B, k ) @ #i )
+  case Init_2
+  solve( St_A_1( $A, $B, ~na ) ▶₀ #i )
+    case Init_1
+    solve( !Ltk( $A, ~ltkA ) ▶₂ #i )
+      case Register_pk
+      solve( !Pk( $B, pkB ) ▶₃ #i )
+        case Register_pk
+        solve( !KU( ~kab ) @ #vk )
+          case Init_2
+          solve( !KU( ~ltkX ) @ #vk.2 )
+            case Reveal_ltk
+            solve( !KU( aenc(<$B, nb, ~na>, pk(~ltkA)) ) @ #vk.2 )
+              case Resp_1
+              solve( !KU( ~na ) @ #vk.5 )
+                case Init_1
+                SOLVED // trace found
+              qed
+            qed
+          qed
+        qed
+      qed
+    qed
+  qed
+qed
+
+lemma aliveness_A_authenticates_B:
+  all-traces
+  "∀ A B n k #i.
+    (Commit_I( A, B, n, k ) @ #i) ⇒
+    (((∃ #j. Aliveness_R_witness( B ) @ #j) ∨ (∃ #r. Reveal( A ) @ #r)) ∨
+     (∃ #r. Reveal( B ) @ #r))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ A B n k #i.
+  (Commit_I( A, B, n, k ) @ #i)
+ ∧
+  (∀ #j. (Aliveness_R_witness( B ) @ #j) ⇒ ⊥) ∧
+  (∀ #r. (Reveal( A ) @ #r) ⇒ ⊥) ∧
+  (∀ #r. (Reveal( B ) @ #r) ⇒ ⊥)"
+*/
+simplify
+solve( St_A_1( $A, $B, ~na ) ▶₀ #i )
+  case Init_1
+  solve( !Ltk( $A, ~ltkA ) ▶₂ #i )
+    case Register_pk
+    solve( !Pk( $B, pkB ) ▶₃ #i )
+      case Register_pk
+      solve( !KU( aenc(<$B, nb, ~na>, pk(~ltkA)) ) @ #vk )
+        case c_aenc
+        solve( !KU( ~na ) @ #vk.6 )
+          case Init_1
+          solve( !KU( pk(~ltkA) ) @ #vk.3 )
+            case Register_pk
+            SOLVED // trace found
+          qed
+        qed
+      qed
+    qed
+  qed
+qed
+
+lemma aliveness_B_authenticates_A:
+  all-traces
+  "∀ B A n k #i.
+    (Commit_R( B, A, n, k ) @ #i) ⇒
+    (((∃ #j. Aliveness_I_witness( A ) @ #j) ∨ (∃ #r. Reveal( A ) @ #r)) ∨
+     (∃ #r. Reveal( B ) @ #r))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ B A n k #i.
+  (Commit_R( B, A, n, k ) @ #i)
+ ∧
+  (∀ #j. (Aliveness_I_witness( A ) @ #j) ⇒ ⊥) ∧
+  (∀ #r. (Reveal( A ) @ #r) ⇒ ⊥) ∧
+  (∀ #r. (Reveal( B ) @ #r) ⇒ ⊥)"
+*/
+simplify
+solve( St_B_1( $B, A, na, ~nb ) ▶₀ #i )
+  case Resp_1
+  solve( !Ltk( $B, ~ltkB ) ▶₂ #i )
+    case Register_pk
+    solve( !KU( aenc(<k, ~nb, na, $X>, pk(~ltkB)) ) @ #vk )
+      case Init_2
+      by contradiction /* from formulas */
+    next
+      case c_aenc
+      solve( !KU( ~nb ) @ #vk.9 )
+        case Init_2
+        by contradiction /* from formulas */
+      next
+        case Resp_1
+        solve( !KU( ~ltkX ) @ #vk.10 )
+          case Reveal_ltk
+          by contradiction /* from formulas */
+        qed
+      qed
+    qed
+  qed
+qed
+
+lemma agreement_A_authenticates_B:
+  all-traces
+  "∀ A B n k #i.
+    (Commit_I( A, B, n, k ) @ #i) ⇒
+    (((∃ #j. Running_R( B, A, n ) @ #j) ∨ (∃ #r. Reveal( A ) @ #r)) ∨
+     (∃ #r. Reveal( B ) @ #r))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ A B n k #i.
+  (Commit_I( A, B, n, k ) @ #i)
+ ∧
+  (∀ #j. (Running_R( B, A, n ) @ #j) ⇒ ⊥) ∧
+  (∀ #r. (Reveal( A ) @ #r) ⇒ ⊥) ∧
+  (∀ #r. (Reveal( B ) @ #r) ⇒ ⊥)"
+*/
+simplify
+solve( St_A_1( $A, $B, ~na ) ▶₀ #i )
+  case Init_1
+  solve( !Ltk( $A, ~ltkA ) ▶₂ #i )
+    case Register_pk
+    solve( !Pk( $B, pkB ) ▶₃ #i )
+      case Register_pk
+      solve( !KU( aenc(<$B, nb, ~na>, pk(~ltkA)) ) @ #vk )
+        case c_aenc
+        solve( !KU( ~na ) @ #vk.6 )
+          case Init_1
+          solve( !KU( pk(~ltkA) ) @ #vk.3 )
+            case Register_pk
+            SOLVED // trace found
+          qed
+        qed
+      qed
+    qed
+  qed
+qed
+
+lemma agreement_B_authenticates_A:
+  all-traces
+  "∀ B A n k #i.
+    (Commit_R( B, A, n, k ) @ #i) ⇒
+    (((∃ #j. Running_I( A, B, n, k ) @ #j) ∨ (∃ #r. Reveal( A ) @ #r)) ∨
+     (∃ #r. Reveal( B ) @ #r))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ B A n k #i.
+  (Commit_R( B, A, n, k ) @ #i)
+ ∧
+  (∀ #j. (Running_I( A, B, n, k ) @ #j) ⇒ ⊥) ∧
+  (∀ #r. (Reveal( A ) @ #r) ⇒ ⊥) ∧
+  (∀ #r. (Reveal( B ) @ #r) ⇒ ⊥)"
+*/
+simplify
+solve( St_B_1( $B, A, na, ~nb ) ▶₀ #i )
+  case Resp_1
+  solve( !Ltk( $B, ~ltkB ) ▶₂ #i )
+    case Register_pk
+    solve( !KU( aenc(<k, ~nb, na, $X>, pk(~ltkB)) ) @ #vk )
+      case Init_2
+      by contradiction /* from formulas */
+    next
+      case c_aenc
+      solve( !KU( ~nb ) @ #vk.9 )
+        case Init_2
+        solve( !KU( ~ltkX.1 ) @ #vk.11 )
+          case Reveal_ltk
+          by contradiction /* from formulas */
+        qed
+      next
+        case Resp_1
+        solve( !KU( ~ltkX ) @ #vk.10 )
+          case Reveal_ltk
+          by contradiction /* from formulas */
+        qed
+      qed
+    qed
+  qed
+qed
+
+lemma key_freshness:
+  all-traces
+  "∀ A B n k #i.
+    (Commit_I( A, B, n, k ) @ #i) ⇒
+    ((∃ #j. Generate( k ) @ #j) ∧
+     (¬(∃ A2 B2 n2 #i2. (Commit_I( A2, B2, n2, k ) @ #i2) ∧ (¬(#i2 = #i)))))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ A B n k #i.
+  (Commit_I( A, B, n, k ) @ #i)
+ ∧
+  ((∀ #j. (Generate( k ) @ #j) ⇒ ⊥) ∨
+   (∃ A2 B2 n2 #i2. (Commit_I( A2, B2, n2, k ) @ #i2) ∧ ¬(#i2 = #i)))"
+*/
+simplify
+solve( (∀ #j. (Generate( ~kab ) @ #j) ⇒ ⊥)  ∥
+       (∃ A2 B2 n2 #i2. (Commit_I( A2, B2, n2, ~kab ) @ #i2) ∧ ¬(#i2 = #i)) )
+  case case_1
+  by contradiction /* from formulas */
+next
+  case case_2
+  by contradiction /* from formulas */
+qed
+
+lemma injective_agreement_A_authenticates_B:
+  all-traces
+  "∀ A B n k #i.
+    (Commit_I( A, B, n, k ) @ #i) ⇒
+    (((∃ #j.
+        ((Running_R( B, A, n ) @ #j) ∧ (#j < #i)) ∧
+        (¬(∃ A2 B2 n2 k2 #i2.
+            (Commit_I( A2, B2, n2, k2 ) @ #i2) ∧ (¬(#i2 = #i))))) ∨
+      (∃ #r. Reveal( A ) @ #r)) ∨
+     (∃ #r. Reveal( B ) @ #r))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ A B n k #i.
+  (Commit_I( A, B, n, k ) @ #i)
+ ∧
+  (∀ #j.
+    (Running_R( B, A, n ) @ #j)
+   ⇒
+    ((¬(#j < #i)) ∨
+     (∃ A2 B2 n2 k2 #i2. (Commit_I( A2, B2, n2, k2 ) @ #i2) ∧ ¬(#i2 = #i)))) ∧
+  (∀ #r. (Reveal( A ) @ #r) ⇒ ⊥) ∧
+  (∀ #r. (Reveal( B ) @ #r) ⇒ ⊥)"
+*/
+simplify
+solve( St_A_1( $A, $B, ~na ) ▶₀ #i )
+  case Init_1
+  solve( !Ltk( $A, ~ltkA ) ▶₂ #i )
+    case Register_pk
+    solve( !Pk( $B, pkB ) ▶₃ #i )
+      case Register_pk
+      solve( !KU( aenc(<$B, nb, ~na>, pk(~ltkA)) ) @ #vk )
+        case c_aenc
+        solve( !KU( ~na ) @ #vk.6 )
+          case Init_1
+          solve( !KU( pk(~ltkA) ) @ #vk.3 )
+            case Register_pk
+            SOLVED // trace found
+          qed
+        qed
+      qed
+    qed
+  qed
+qed
+
+lemma injective_agreement_B_authenticates_A:
+  all-traces
+  "∀ B A n k #i.
+    (Commit_R( B, A, n, k ) @ #i) ⇒
+    (((∃ #j.
+        ((Running_I( A, B, n, k ) @ #j) ∧ (#j < #i)) ∧
+        (¬(∃ B2 A2 n2 k2 #i2.
+            (Commit_R( B2, A2, n2, k2 ) @ #i2) ∧ (¬(#i2 = #i))))) ∨
+      (∃ #r. Reveal( A ) @ #r)) ∨
+     (∃ #r. Reveal( B ) @ #r))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ B A n k #i.
+  (Commit_R( B, A, n, k ) @ #i)
+ ∧
+  (∀ #j.
+    (Running_I( A, B, n, k ) @ #j)
+   ⇒
+    ((¬(#j < #i)) ∨
+     (∃ B2 A2 n2 k2 #i2. (Commit_R( B2, A2, n2, k2 ) @ #i2) ∧ ¬(#i2 = #i)))) ∧
+  (∀ #r. (Reveal( A ) @ #r) ⇒ ⊥) ∧
+  (∀ #r. (Reveal( B ) @ #r) ⇒ ⊥)"
+*/
+simplify
+solve( St_B_1( $B, A, na, ~nb ) ▶₀ #i )
+  case Resp_1
+  solve( !Ltk( $B, ~ltkB ) ▶₂ #i )
+    case Register_pk
+    solve( !KU( aenc(<k, ~nb, na, $X>, pk(~ltkB)) ) @ #vk )
+      case Init_2
+      solve( (#i2 < #i)  ∥ (#i < #i2) )
+        case case_1
+        solve( St_B_1( $B.1, A2, na.1, ~nb.1 ) ▶₀ #i2 )
+          case Resp_1
+          solve( !Ltk( $B.1, ~ltkB.1 ) ▶₂ #i2 )
+            case Register_pk
+            solve( !KU( aenc(<$B, ~nb, ~na>, pk(~ltkA)) ) @ #vk.4 )
+              case Resp_1
+              solve( !KU( aenc(<k2, ~nb.1, na.1, $X.1>, pk(~ltkB.1)) ) @ #vk.5 )
+                case Init_2
+                solve( !KU( aenc(<$B.1, ~nb.1, ~na.1>, pk(~ltkA.1)) ) @ #vk.9 )
+                  case Resp_1
+                  solve( !KU( ~na ) @ #vk.6 )
+                    case Init_1
+                    solve( !KU( ~na.1 ) @ #vk.9 )
+                      case Init_1
+                      SOLVED // trace found
+                    qed
+                  qed
+                qed
+              qed
+            qed
+          qed
+        qed
+      qed
+    qed
+  qed
+qed
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+lemma AUTO_typing [sources]:
+  all-traces
+  "(⊤) ∧
+   (∀ x m #i.
+     (AUTO_IN_TERM_1_0_0_1_0__Init_2( m, x ) @ #i) ⇒
+     ((∃ #j. (!KU( x ) @ #j) ∧ (#j < #i)) ∨
+      (∃ #j. (AUTO_OUT_TERM_1_0_0_1_0__Init_2( m ) @ #j) ∧ (#j < #i))))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ x m #i.
+  (AUTO_IN_TERM_1_0_0_1_0__Init_2( m, x ) @ #i)
+ ∧
+  (∀ #j. (!KU( x ) @ #j) ⇒ ¬(#j < #i)) ∧
+  (∀ #j. (AUTO_OUT_TERM_1_0_0_1_0__Init_2( m ) @ #j) ⇒ ¬(#j < #i))"
+*/
+induction
+  case empty_trace
+  by contradiction /* from formulas */
+next
+  case non_empty_trace
+  simplify
+  solve( (last(#i))  ∥
+         (∃ #j. (!KU( x ) @ #j) ∧ (¬(last(#j))) ∧ (#j < #i))  ∥
+         (∃ #j.
+           (AUTO_OUT_TERM_1_0_0_1_0__Init_2( aenc(<$B, x, ~na>, pk(~ltkA)) ) @ #j)
+          ∧
+           (¬(last(#j))) ∧ (#j < #i)) )
+    case case_1
+    solve( St_A_1( $A, $B, ~na ) ▶₀ #i )
+      case Init_1
+      solve( !Ltk( $A, ~ltkA ) ▶₂ #i )
+        case Register_pk
+        solve( !Pk( $B, pkB ) ▶₃ #i )
+          case Register_pk
+          solve( !KU( aenc(<$B, x, ~na>, pk(~ltkA)) ) @ #vk )
+            case Init_2
+            solve( (∃ #j. (!KU( nb ) @ #j) ∧ (¬(last(#j))) ∧ (#j < #vr.3))  ∥
+                   (∃ #j.
+                     (AUTO_OUT_TERM_1_0_0_1_0__Init_2( aenc(<$B.1, nb, ~na.1>, pk(~ltkA.1))
+                      ) @ #j)
+                    ∧
+                     (¬(last(#j))) ∧ (#j < #vr.3)) )
+              case case_1
+              by contradiction /* cyclic */
+            next
+              case case_2
+              by contradiction /* impossible chain */
+            qed
+          next
+            case Resp_1
+            by contradiction /* from formulas */
+          next
+            case c_aenc
+            by contradiction /* from formulas */
+          qed
+        qed
+      qed
+    qed
+  next
+    case case_2
+    by contradiction /* from formulas */
+  next
+    case case_3
+    by contradiction /* from formulas */
+  qed
+qed
+
+/* All wellformedness checks were successful. */
+
+/*
+Generated from:
+Tamarin version 1.10.0
+Maude version 2.7.1
+Git revision: UNKNOWN, branch: UNKNOWN
+Compiled at: 2024-10-30 14:56:23.355649243 UTC
+*/
+
+end
+
+==============================================================================
+summary of summaries:
+
+analyzed: NOMITMv2_secure.spthy
+
+  processing time: 1.23s
+  
+  executable (exists-trace): verified (12 steps)
+  secrecy_Kab (all-traces): verified (19 steps)
+  secrecy_Kab_PFS (all-traces): falsified - found trace (10 steps)
+  aliveness_A_authenticates_B (all-traces): falsified - found trace (8 steps)
+  aliveness_B_authenticates_A (all-traces): verified (9 steps)
+  agreement_A_authenticates_B (all-traces): falsified - found trace (8 steps)
+  agreement_B_authenticates_A (all-traces): verified (10 steps)
+  key_freshness (all-traces): verified (4 steps)
+  injective_agreement_A_authenticates_B (all-traces): falsified - found trace (8 steps)
+  injective_agreement_B_authenticates_A (all-traces): falsified - found trace (13 steps)
+  AUTO_typing (all-traces): verified (15 steps)
+
+==============================================================================

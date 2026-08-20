@@ -1,0 +1,45 @@
+\section{Attaque sur le lemme \texttt{aliveness\_B\_to\_A}}
+
+\subsection{Description}
+
+Le lemme \texttt{aliveness\_B\_to\_A} cherche à vérifier que si l'agent $B$ termine le protocole
+avec l'agent $A$, alors $A$ a également terminé le protocole. Formellement, le lemme s'exprime
+comme suit :
+\[
+    \forall A, B, k_{AB}, \#j : \text{Finish\_B}(A, B, k_{AB}) @ \#j \implies
+    \exists \#i : \text{Finish\_A}(A, B, k_{AB}) @ \#i
+\]
+où l'on néglige les cas de compromission des clés.
+
+\subsection{Trace d'attaque identifiée par Tamarin}
+
+Tamarin génère une trace d'attaque où l'adversaire exploite le fait que le dernier message du
+protocole peut être intercepté ou perdu. La trace se déroule comme suit. L'agent $A$ initie le
+protocole en générant le nonce $N_A$ et la clé de session $k_{AB}$, puis envoie le premier
+message $\{|\langle A, N_A \rangle|\}_{k_{AB}}$ vers $B$. Ensuite, $A$ contacte le serveur $S$
+en envoyant $\{|\langle B, \tau, \lambda, k_{AB} \rangle|\}_{k_{AS}}$. Le serveur $S$ transmet
+alors à $B$ le message $\{|\langle A, \tau, \lambda, k_{AB} \rangle|\}_{k_{BS}}$. L'agent $B$
+reçoit ce message, déchiffre le premier message de $A$, et envoie la confirmation
+$\{|N_A + 1|\}_{k_{AB}}$.
+
+À ce stade, l'adversaire intercepte le quatrième message avant qu'il n'atteigne $A$. Le résultat
+est que $B$ a terminé le protocole avec succès car il a envoyé sa confirmation, mais $A$ n'a
+jamais reçu cette confirmation et reste donc dans un état d'attente. Tamarin considère que $B$
+a exécuté l'action $\text{Finish\_B}(A, B, k_{AB})$ sans qu'il existe d'action correspondante
+$\text{Finish\_A}(A, B, k_{AB})$.
+
+\subsection{Justification de la validité du protocole}
+
+Cette attaque n'est pas considérée comme une vulnérabilité réelle du protocole ASKO-OM8464A2.
+En effet, nos spécifications précisent explicitement que la validation de l'échange repose sur
+l'envoi du dernier message par $B$. Lorsque $B$ envoie le message $\{|N_A + 1|\}_{k_{AB}}$, il
+démontre qu'il possède la clé de session $k_{AB}$ et qu'il a bien reçu le nonce $N_A$ de $A$.
+Du point de vue de la sémantique du protocole, l'échange est considéré comme valide dès que $B$
+termine son exécution, indépendamment de la réception effective du message par $A$.
+
+Cette conception reflète un choix architectural où la responsabilité de la validation finale
+incombe au répondant $B$. Dans notre modèle de menace, il est acceptable que $A$ ne reçoive pas
+toujours la confirmation finale, car le protocole garantit que si $B$ termine, alors $A$ a
+nécessairement initié la communication et que la clé $k_{AB}$ a été correctement établie.
+L'important est que $B$ puisse authentifier $A$ via le serveur $S$, ce qui est effectivement
+garanti par le message 3 du protocole.

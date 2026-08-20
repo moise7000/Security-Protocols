@@ -1,0 +1,289 @@
+theory NOMITM_Secure_Analysis
+begin
+
+builtins: asymmetric-encryption, hashing
+
+/*
+ * PROTOCOLE NOMITM (Sécurisé)
+ *
+ * 1. A -> B : A, Na
+ * 2. B -> A : {B, Nb, Na}pk(A)
+ * 3. A -> B : {Kab, Nb, Na, A}pk(B)
+ * 4. B -> A : H(Kab, Na)
+ *
+ * Connaissance initiale:
+ * - A et B connaissent les clés publiques de tous les agents (PKI)
+ * - Les clés privées sont gardées secrètes
+ *
+ * Valeurs générées:
+ * - Na et Nb sont des nonces générés à l'exécution
+ * - Kab est la clé de session choisie par A
+ */
+
+// ============================================================================
+// RÈGLES DE CONFIGURATION
+// ============================================================================
+
+/*
+ * Règle: Register_pk
+ * Description: Établit l'infrastructure de clés publiques (PKI)
+ * Génère une clé long-terme (ltk) pour un agent et publie la clé publique associée
+ */
+rule Register_pk:
+  [ Fr(~ltkX) ]
+  --[ ]->
+  [ !Ltk($X, ~ltkX)
+  , !Pk($X, pk(~ltkX))
+  , Out(pk(~ltkX)) 
+  ]
+
+/*
+ * Règle: Reveal_ltk
+ * Description: Permet à l'adversaire de compromettre une clé long-terme
+ * Utilisé pour tester la sécurité du protocole en cas de compromission (PFS, KCI, etc.)
+ */
+rule Reveal_ltk:
+  [ !Ltk(A, ltkA) ]
+  --[ Reveal(A) ]->
+  [ Out(ltkA) ]
+
+// ============================================================================
+// PROTOCOLE - RÔLES
+// ============================================================================
+
+/*
+ * Règle: Init_1
+ * Description: A initie le protocole
+ * A génère un nonce Na
+ * A envoie le premier message à B : A, Na (en clair)
+ * Correspond au Message 1 du protocole
+ */
+rule Init_1:
+  [ Fr(~na) ]
+  --[ Create_I($A, ~na)
+    , Generate(~na) 
+    ]->
+  [ Out(<$A, ~na>)
+  , St_A_1($A, $B, ~na)
+  ]
+
+/*
+ * Règle: Resp_1
+ * Description: B reçoit la demande de A et répond
+ * B génère son propre nonce Nb
+ * B chiffre {B, Nb, Na} avec la clé publique de A
+ * Correspond au Message 2 du protocole
+ */
+rule Resp_1:
+  let
+    msg_out = aenc(<$B, ~nb, na>, pkA)
+  in
+  [ In(<A, na>)
+  , Fr(~nb)
+  , !Pk(A, pkA)
+  ]
+  --[ Running_R($B, A, <na, ~nb>) // B déclare courir le protocole avec ces paramètres
+    , Generate(~nb)
+    , Receive_Nonce(na)
+    , Aliveness_R_witness($B)
+    ]-> 
+  [ Out(msg_out)
+  , St_B_1($B, A, na, ~nb)
+  ]
+
+/*
+ * Règle: Init_2
+ * Description: A reçoit la réponse de B, génère la clé de session et l'envoie
+ * A vérifie que le Na reçu correspond à celui envoyé
+ * A génère la clé de session Kab
+ * A chiffre {Kab, Nb, Na, A} avec la clé publique de B
+ * Correspond au Message 3 du protocole
+ */
+rule Init_2:
+  let
+    // A vérifie Na implicitement par pattern matching
+    msg_in  = aenc(<$B, nb, ~na>, pk(~ltkA)) 
+    msg_out = aenc(<~kab, nb, ~na, $A>, pkB)
+  in
+  [ St_A_1($A, $B, ~na)
+  , In(msg_in)
+  , !Ltk($A, ~ltkA)
+  , !Pk($B, pkB)
+  , Fr(~kab)
+  ]
+  --[ Commit_I($A, $B, <~na, nb>, ~kab) // A s'engage sur les paramètres et la clé
+    , Running_I($A, $B, <~na, nb>, ~kab) // A déclare courir pour B
+    , Secret($A, $B, ~kab)               // A déclare que la clé doit être secrète
+    , Generate(~kab)
+    , Receive_Nonce(nb)
+    , Aliveness_I_witness($A)
+  ]->
+  [ Out(msg_out)
+  , St_A_2($A, $B, ~na, nb, ~kab)
+  ]
+
+/*
+ * Règle: Resp_2
+ * Description: B reçoit la clé de session et envoie une preuve de confirmation
+ * B déchiffre le message, vérifie les nonces et récupère Kab
+ * B envoie le hash H(Kab, Na) pour prouver la réception
+ * Correspond au Message 4 du protocole
+ */
+rule Resp_2:
+  let
+    msg_in = aenc(<kab, ~nb, na, A>, pk(~ltkB))
+    proof  = h(<kab, na>)
+  in
+  [ St_B_1($B, A, na, ~nb)
+  , In(msg_in)
+  , !Ltk($B, ~ltkB)
+  ]
+  --[ Commit_R($B, A, <na, ~nb>, kab) // B s'engage sur les paramètres et la clé
+    , Secret($B, A, kab)              // B déclare que la clé doit être secrète
+    , Receive_Key(kab)
+    , Finished_R($B)
+  ]->
+  [ Out(proof) ]
+
+/*
+ * Règle: Init_3
+ * Description: A reçoit la preuve finale de B
+ * A vérifie que le hash reçu correspond à H(Kab, Na)
+ * Fin du protocole pour A
+ */
+rule Init_3:
+  let
+    expected_proof = h(<~kab, ~na>)
+  in
+  [ St_A_2($A, $B, ~na, nb, ~kab)
+  , In(expected_proof)
+  ]
+  --[ Finished_I($A, $B, ~kab) ]->
+  [ ]
+
+
+// ============================================================================
+// LEMMES DE SÉCURITÉ
+// ============================================================================
+
+/*
+ * Lemme: executable
+ * Description: Vérifie que le protocole est exécutable de bout en bout
+ * Il existe une trace où A et B finissent sans que l'adversaire n'intervienne (pas de Reveal)
+ */
+lemma executable:
+  exists-trace
+  "Ex A B k #i #j. Finished_I(A, B, k) @i & Finished_R(B) @j 
+   & not (Ex #r. Reveal(A) @r) & not (Ex #r. Reveal(B) @r)"
+
+/*
+ * Lemme: secrecy_Kab
+ * Description: Propriété de Secret Standard
+ * Si A ou B déclarent la clé k secrète, l'adversaire ne doit pas la connaître
+ * Sauf si les clés long-terme de A ou B ont été compromises
+ */
+lemma secrecy_Kab:
+  all-traces
+  "All A B k #i. 
+    Secret(A, B, k) @i ==> 
+    ( not (Ex #j. K(k) @j) | (Ex #r. Reveal(A) @r) | (Ex #r. Reveal(B) @r) )"
+
+/*
+ * Lemme: secrecy_Kab_PFS
+ * Description: Propriété de Perfect Forward Secrecy (PFS)
+ * Vérifie si la clé de session reste secrète même si les clés long-terme sont révélées
+ * PLUS TARD dans le futur (r > i).
+ * Si ce lemme échoue, le protocole n'est pas résistant à la compromission future.
+ */
+lemma secrecy_Kab_PFS:
+  all-traces
+  "All A B k #i. 
+    Secret(A, B, k) @i ==> 
+    ( not (Ex #j. K(k) @j) 
+      | (Ex #r. Reveal(A) @r & r < i) // La révélation doit avoir eu lieu AVANT
+      | (Ex #r. Reveal(B) @r & r < i) 
+    )"
+
+/*
+ * Lemme: aliveness_A_authenticates_B
+ * Description: Propriété d'Authentification (Vivacité)
+ * Si A termine le protocole en pensant parler à B, alors B a été vivant (actif) récemment
+ */
+lemma aliveness_A_authenticates_B:
+  all-traces
+  "All A B n k #i. Commit_I(A, B, n, k) @i ==> 
+    (Ex #j. Aliveness_R_witness(B) @j) | (Ex #r. Reveal(A) @r) | (Ex #r. Reveal(B) @r)"
+
+/*
+ * Lemme: aliveness_B_authenticates_A
+ * Description: Propriété d'Authentification (Vivacité)
+ * Si B termine le protocole en pensant parler à A, alors A a été vivant (actif) récemment
+ */
+lemma aliveness_B_authenticates_A:
+  all-traces
+  "All B A n k #i. Commit_R(B, A, n, k) @i ==> 
+    (Ex #j. Aliveness_I_witness(A) @j) | (Ex #r. Reveal(A) @r) | (Ex #r. Reveal(B) @r)"
+
+/*
+ * Lemme: agreement_A_authenticates_B
+ * Description: Propriété d'Accord Faible (Weak Agreement)
+ * Si A termine (Commit), alors B a couru (Running) le protocole avec A
+ * Vérifie l'accord sur les partenaires (et ici les nonces)
+ */
+lemma agreement_A_authenticates_B:
+  all-traces
+  "All A B n k #i. Commit_I(A, B, n, k) @i ==> 
+    (Ex #j. Running_R(B, A, n) @j) 
+    | (Ex #r. Reveal(A) @r) | (Ex #r. Reveal(B) @r)"
+
+/*
+ * Lemme: agreement_B_authenticates_A
+ * Description: Propriété d'Accord Faible (Weak Agreement)
+ * Si B termine (Commit), alors A a couru (Running) le protocole avec B
+ * Vérifie l'accord sur les partenaires, les nonces et la clé
+ */
+lemma agreement_B_authenticates_A:
+  all-traces
+  "All B A n k #i. Commit_R(B, A, n, k) @i ==> 
+    (Ex #j. Running_I(A, B, n, k) @j) 
+    | (Ex #r. Reveal(A) @r) | (Ex #r. Reveal(B) @r)"
+
+/*
+ * Lemme: key_freshness
+ * Description: Propriété de Fraîcheur de Clé
+ * Vérifie que si une clé est acceptée, elle a été générée fraîchement
+ * et n'est pas réutilisée dans une autre session acceptée par le même agent
+ */
+lemma key_freshness:
+  all-traces
+  "All A B n k #i. Commit_I(A, B, n, k) @i ==> 
+    (Ex #j. Generate(k) @j) 
+    & not (Ex A2 B2 n2 #i2. Commit_I(A2, B2, n2, k) @i2 & not(#i2 = #i))"
+
+/*
+ * Lemme: injective_agreement_A_authenticates_B
+ * Description: Accord Injectif (Injective Agreement) de A vers B
+ * Renforce l'accord faible en exigeant l'unicité : chaque exécution de A correspond
+ * à une exécution unique de B (protection contre le rejeu)
+ */
+lemma injective_agreement_A_authenticates_B:
+  all-traces
+  "All A B n k #i. Commit_I(A, B, n, k) @i ==> 
+    (Ex #j. Running_R(B, A, n) @j & j < i
+     & not (Ex A2 B2 n2 k2 #i2. Commit_I(A2, B2, n2, k2) @i2 & not(#i2 = #i))
+    ) | (Ex #r. Reveal(A) @r) | (Ex #r. Reveal(B) @r)"
+
+/*
+ * Lemme: injective_agreement_B_authenticates_A
+ * Description: Accord Injectif (Injective Agreement) de B vers A
+ * Renforce l'accord faible en exigeant l'unicité : chaque exécution de B correspond
+ * à une exécution unique de A (protection contre le rejeu)
+ */
+lemma injective_agreement_B_authenticates_A:
+  all-traces
+  "All B A n k #i. Commit_R(B, A, n, k) @i ==> 
+    (Ex #j. Running_I(A, B, n, k) @j & j < i
+     & not (Ex B2 A2 n2 k2 #i2. Commit_R(B2, A2, n2, k2) @i2 & not(#i2 = #i))
+    ) | (Ex #r. Reveal(A) @r) | (Ex #r. Reveal(B) @r)"
+
+end

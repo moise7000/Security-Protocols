@@ -1,0 +1,49 @@
+\section{Attaque sur le lemme \texttt{injective\_agreement\_B\_A}}
+
+\subsection{Description}
+
+Le lemme \texttt{injective\_agreement\_B\_A} vise à garantir une propriété d'accord injectif
+entre $B$ et $A$. Cette propriété stipule que chaque acceptation de la clé $k_{AB}$ par $B$
+correspond à une unique initiation par $A$. Formellement :
+\[
+    \forall A, B, t, \#i : \text{Commit\_B}(A, B, \langle \text{`init'}, t \rangle) @ \#i \implies
+\]
+\[
+    \exists \#j : \text{Running\_A}(A, B, \langle \text{`init'}, t \rangle) @ \#j \land \#j < \#i \land
+\]
+\[
+    \neg \exists A_2, B_2, \#i_2 : \text{Commit\_B}(A_2, B_2, \langle \text{`init'}, t \rangle) @ \#i_2 \land \#i_2 \neq \#i
+\]
+
+\subsection{Trace d'attaque identifiée par Tamarin}
+
+Tamarin génère une trace d'attaque exploitant la possibilité de rejouer les messages du protocole.
+Dans un premier temps, une session légitime se déroule entre $A$ et $B$. L'agent $A$ génère la
+clé $k_{AB}$ et le nonce $N_A$, puis les messages du protocole sont échangés normalement jusqu'à
+ce que $B$ termine avec succès. L'adversaire enregistre tous les messages échangés durant cette
+session, en particulier les messages $\{|\langle A, N_A \rangle|\}_{k_{AB}}$ et $\{|\langle A, \tau, \lambda, k_{AB} \rangle|\}_{k_{BS}}$.
+
+Par la suite, l'adversaire rejoue ces deux messages vers $B$. Puisque les messages sont toujours
+valides selon la vérification temporelle $t < \tau + \lambda$, l'agent $B$ accepte une deuxième
+fois la clé $k_{AB}$. Du point de vue de Tamarin, il existe maintenant deux exécutions distinctes
+de $\text{Commit\_B}$ avec la même clé $k_{AB}$, alors qu'il n'existe qu'une seule exécution de
+$\text{Running\_A}$. Cela viole la propriété d'injectivité qui exige une correspondance bijective
+entre les acceptations de $B$ et les initiations de $A$.
+
+Cette attaque est rendue possible par l'absence d'un mécanisme liant de manière unique chaque
+réponse de $B$ à une requête spécifique. Le timestamp $\tau$ et la durée de validité $\lambda$
+ne suffisent pas à empêcher le rejeu durant la fenêtre temporelle $[\tau, \tau + \lambda]$, et
+$B$ ne conserve pas de trace des clés de session déjà utilisées.
+
+\subsection{Justification de la validité du protocole}
+
+Cette attaque par rejeu n'est pas considérée comme une violation de nos spécifications de
+sécurité. En effet, le document de spécifications stipule explicitement que B doit vérifier
+que le nonce n'a pas déjà été envoyé. Donc si il reçoit 2 fois le même message il pourra avorter
+le protocole. Cette modification a été ajoutée dans tamarinn mais nous n'avons pas réussi à faire
+fonctionner le protocole avec cete modification des règles de réécriture.
+
+La propriété d'injectivité stricte n'est donc pas nécessaire dans notre contexte d'utilisation.
+Ce qui importe est que chaque session soit correctement authentifiée et que la clé reste secrète
+pendant sa durée d'utilisation effective, ce qui est garanti par les propriétés de fraîcheur et
+de secret que Tamarin a pu vérifier avec succès.

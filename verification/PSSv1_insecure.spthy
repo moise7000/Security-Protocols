@@ -1,0 +1,358 @@
+theory PSS_Analysis
+begin
+
+builtins: asymmetric-encryption, symmetric-encryption, hashing
+
+/*
+ * PROTOCOLE PSS (Dyvia Pugo, Marcella Scholze, Sylvie Sidler)
+ * * 1. B → A : N_B
+ * 2. A → B : {K_AB, A, N_A, N_B}_pk(B)
+ * 3. B → A : {| {N_B, N_A - 1}_pk(A) |}_K_AB
+ * 4. A → B : {| N_B - 1 |}_K_AB
+ *
+ * Connaissance initiale:
+ * - A et B connaissent leurs paires de clés (sk/pk)
+ * - A et B connaissent les clés publiques de l'autre
+ * - K_AB est générée fraîchement par A
+ */
+
+// ============================================================================
+// FONCTIONS AUXILIAIRES
+// ============================================================================
+
+/*
+ * Modélisation des opérations arithmétiques sur les nonces
+ * On modélise N-1 par une fonction abstraite decr(x).
+ * La vérification consiste à appliquer incr() sur la valeur reçue 
+ * et voir si on retombe sur le nonce original.
+ */
+functions: decr/1, incr/1
+equations: incr(decr(x)) = x
+
+// ============================================================================
+// RÈGLES DE CONFIGURATION (INFRASTRUCTURE DE CLÉS)
+// ============================================================================
+
+/*
+ * Règle: Register_pk
+ * Description: Génère et enregistre une paire de clés (publique/privée) pour un agent
+ * La clé publique est diffusée sur le réseau (Out)
+ */
+rule Register_pk:
+  [ Fr(~ltkX) ]
+  --[ ]->
+  [ !Ltk($X, ~ltkX), !Pk($X, pk(~ltkX)), Out(pk(~ltkX)) ]
+
+/*
+ * Règle: Reveal_ltk
+ * Description: Permet à l'adversaire de compromettre une clé privée à long terme (Long Term Key)
+ * Utilisé pour vérifier les propriétés de sécurité (PFS) en cas de corruption
+ */
+rule Reveal_ltk:
+  [ !Ltk(X, ltk) ]
+  --[ Reveal(X) ]->
+  [ Out(ltk) ]
+
+// ============================================================================
+// PROTOCOLE - RÔLE DU RÉPONDANT (B) - INITIALISATION
+// ============================================================================
+
+/*
+ * Règle: B_1_send
+ * Description: B initie le protocole en générant un nonce N_B (freshness)
+ * Message 1: B → A : N_B
+ * Ce nonce sert de challenge pour garantir que la session est récente
+ */
+rule B_1_send:
+  [ Fr(~nb) ]
+  --[ Create_B($B, ~nb)
+    , Generate_Nonce(~nb)
+    , Aliveness_B_witness($B)
+    ]->
+  [ Out(~nb) 
+  , St_B_1($B, $A, ~nb) 
+  ]
+
+// ============================================================================
+// PROTOCOLE - RÔLE DE L'INITIATEUR (A)
+// ============================================================================
+
+/*
+ * Règle: A_1_send
+ * Description: A reçoit le challenge N_B, génère la clé de session K_AB et son nonce N_A
+ * Message 2: A → B : {K_AB, A, N_A, N_B}_pk(B)
+ * A assure la confidentialité de la clé de session via le chiffrement asymétrique
+ * A lie la session au nonce reçu N_B
+ */
+rule A_1_send:
+  let 
+    // A reçoit NB (nb_rec). Il ne sait pas encore si c'est frais.
+    msg_out = aenc(<~kab, $A, ~na, nb_rec>, pkB)
+  in
+  [ In(nb_rec)                     
+  , !Pk($B, pkB)
+  , Fr(~na), Fr(~kab)
+  ]
+  --[ Running_A($A, $B, ~kab, ~na, nb_rec)
+    , Secret($A, $B, ~kab)
+    , Generate_Nonce(~na)
+    , Generate_Key(~kab)
+    , Receive_Nonce(nb_rec) // A a reçu une valeur qu'il traite comme un nonce
+    , Aliveness_A_witness($A)
+    ]->
+  [ Out(msg_out)
+  , St_A_1($A, $B, ~kab, ~na, nb_rec)
+  ]
+
+// ============================================================================
+// PROTOCOLE - RÔLE DU RÉPONDANT (B) - RÉPONSE
+// ============================================================================
+
+/*
+ * Règle: B_2_send
+ * Description: B reçoit la clé de session K_AB et le nonce N_A
+ * Message 3: B → A : {| {N_B, N_A - 1}_pk(A) |}_K_AB
+ * B vérifie que le N_B reçu correspond à celui envoyé (authentification de A)
+ * B effectue l'opération N_A - 1 pour prouver sa présence à A
+ * Double chiffrement : asymétrique (pour A) puis symétrique (session)
+ */
+rule B_2_send:
+  let 
+    // Déchiffrement du message 2 avec la clé privée de B
+    plaintext = adec(c_msg2, ~ltkB)
+    // Structure attendue : <KAB, A, NA, NB>
+    kab_rec = fst(plaintext)
+    A_id    = fst(snd(plaintext))
+    na_rec  = fst(snd(snd(plaintext)))
+    nb_rec  = snd(snd(snd(plaintext))) // Le NB renvoyé par A
+    
+    // Préparation message 3
+    // NA-1
+    na_decr = decr(na_rec)
+    // {NB, NA-1}pk(A)
+    inner_msg = aenc(<~nb_gen, na_decr>, pkA)
+    // Chiffrement symétrique avec KAB
+    msg_out = senc(inner_msg, kab_rec)
+  in
+  [ In(c_msg2)
+  , St_B_1($B, $A, ~nb_gen) // B connait son propre NB généré
+  , !Ltk($B, ~ltkB)
+  , !Pk($A, pkA)
+  ]
+  --[ Eq(nb_rec, ~nb_gen) // Vérification: Le NB reçu doit être celui généré
+    , Eq(A_id, $A)        // Vérification de l'identité de A
+    , Running_B($B, $A, kab_rec, na_rec, ~nb_gen)
+    , Secret($B, $A, kab_rec)
+    , Receive_Key(kab_rec)
+    , Receive_Nonce(na_rec)
+    ]->
+  [ Out(msg_out)
+  , St_B_2($B, $A, kab_rec, na_rec, ~nb_gen)
+  ]
+
+// ============================================================================
+// PROTOCOLE - RÔLE DE L'INITIATEUR (A) - FINALISATION
+// ============================================================================
+
+/*
+ * Règle: A_2_receive
+ * Description: A déchiffre le message, vérifie N_A-1 et répond avec N_B-1
+ * Message 4: A → B : {| N_B - 1 |}_K_AB
+ * A confirme que B est vivant et détient la clé K_AB
+ * A complète l'authentification mutuelle
+ */
+rule A_2_receive:
+  let
+    // Déchiffrement symétrique
+    inner_cipher = sdec(c_msg3, ~kab)
+    // Déchiffrement asymétrique
+    inner_plain  = adec(inner_cipher, ~ltkA)
+    
+    // Structure: <NB, NA-1>
+    nb_check = fst(inner_plain)
+    na_decr_rec = snd(inner_plain)
+    
+    // Vérification: incr(NA-1) == NA ?
+    check_na = incr(na_decr_rec)
+    
+    // Préparation message 4: NB-1
+    nb_decr = decr(nb_check)
+    msg_out = senc(nb_decr, ~kab)
+  in
+  [ In(c_msg3)
+  , St_A_1($A, $B, ~kab, ~na, nb_rec) 
+  , !Ltk($A, ~ltkA)
+  ]
+  --[ Eq(check_na, ~na) // A vérifie que B a bien inversé NA
+    , Eq(nb_check, nb_rec) // Vérifie la cohérence du NB
+    , Commit_A($A, $B, ~kab, ~na, nb_rec)
+    , Aliveness_A_witness($A)
+    , Receive_Nonce(nb_check) // Reçu à l'intérieur du chiffré
+    ]->
+  [ Out(msg_out)
+  , St_A_2($A, $B, ~kab, ~na, nb_rec)
+  ]
+
+// ============================================================================
+// PROTOCOLE - RÔLE DU RÉPONDANT (B) - CONCLUSION
+// ============================================================================
+
+/*
+ * Règle: B_3_receive
+ * Description: B reçoit la confirmation finale de A
+ * B vérifie N_B-1 pour s'assurer que A a bien reçu le message précédent
+ * Le protocole se termine avec succès pour B
+ */
+rule B_3_receive:
+  let
+    // Déchiffrement
+    nb_decr_rec = sdec(c_msg4, ~kab)
+    // Vérification: incr(NB-1) == NB ?
+    check_nb = incr(nb_decr_rec)
+  in
+  [ In(c_msg4)
+  , St_B_2($B, $A, ~kab, ~na_rec, ~nb_gen) 
+  ]
+  --[ Eq(check_nb, ~nb_gen) // B vérifie que A a bien inversé NB
+    , Commit_B($B, $A, ~kab, ~na_rec, ~nb_gen)
+    , Finish_Protocol()
+    ]->
+  []
+
+
+// ============================================================================
+// LEMMES DE SÉCURITÉ
+// ============================================================================
+
+restriction Equality:
+  "All x y #i. Eq(x, y) @i ==> x = y"
+
+// Règles utilitaires pour tracer la génération
+rule Generate_Nonce: [Fr(~n)] --[ Generate_Nonce(~n) ]-> [ ]
+rule Generate_Key: [Fr(~k)] --[ Generate_Key(~k) ]-> [ ]
+
+/*
+ * Lemme: executable
+ * Description: Vérifie que le protocole est exécutable de bout en bout
+ * Le protocole doit permettre à A et B de terminer leur session sans attaque
+ */
+lemma executable:
+  exists-trace
+  "Ex A B kab #i #j. Finish_Protocol() @i & Commit_A(A, B, kab, ANY, ANY) @j
+   & not (Ex #r. Reveal(A) @r) & not (Ex #r. Reveal(B) @r)"
+
+/*
+ * Lemme: secrecy_Kab
+ * Description: Propriété de Secret
+ * Vérifie que la clé de session K_AB reste secrète vis-à-vis de l'adversaire
+ * Condition : A et B ne doivent pas être compromis
+ */
+lemma secrecy_Kab:
+  all-traces
+  "All A B k #i.
+    Secret(A, B, k) @i ==> 
+    ( not (Ex #j. K(k) @j) | (Ex #r. Reveal(A) @r) | (Ex #r. Reveal(B) @r) )"
+
+/*
+ * Lemme: secrecy_Kab_PFS
+ * Description: Propriété de Perfect Forward Secrecy (PFS)
+ * Si une clé long terme est compromise APRÈS la fin de la session, 
+ * la clé de session passée K_AB doit rester secrète
+ */
+lemma secrecy_Kab_PFS:
+  all-traces
+  "All A B k #i.
+    Secret(A, B, k) @i ==> 
+    ( not (Ex #j. K(k) @j) 
+      | (Ex #r. Reveal(A) @r & r < i) 
+      | (Ex #r. Reveal(B) @r & r < i)
+    )"
+
+/*
+ * Lemme: aliveness_A_authenticates_B
+ * Description: Propriété d'Authentification (Vivacité)
+ * Si A termine le protocole, alors B était actif récemment
+ */
+lemma aliveness_A_authenticates_B:
+  all-traces
+  "All A B k nA nB #i.
+    Commit_A(A, B, k, nA, nB) @i ==> 
+    (Ex #j. Aliveness_B_witness(B) @j) |
+    (Ex #r. Reveal(A) @r) | (Ex #r. Reveal(B) @r)"
+
+/*
+ * Lemme: aliveness_B_authenticates_A
+ * Description: Propriété d'Authentification (Vivacité)
+ * Si B termine le protocole, alors A était actif récemment
+ */
+lemma aliveness_B_authenticates_A:
+  all-traces
+  "All B A k nA nB #i.
+    Commit_B(B, A, k, nA, nB) @i ==> 
+    (Ex #j. Aliveness_A_witness(A) @j) |
+    (Ex #r. Reveal(A) @r) | (Ex #r. Reveal(B) @r)"
+
+/*
+ * Lemme: agreement_A_authenticates_B
+ * Description: Propriété d'Accord faible (Weak Agreement)
+ * Si A termine avec B sur des données (k, nA, nB), alors B a aussi exécuté le protocole avec A
+ */
+lemma agreement_A_authenticates_B:
+  all-traces
+  "All A B k nA nB #i.
+    Commit_A(A, B, k, nA, nB) @i ==> 
+    (Ex #j. Running_B(B, A, k, nA, nB) @j) |
+    (Ex #r. Reveal(A) @r) | (Ex #r. Reveal(B) @r)"
+
+/*
+ * Lemme: agreement_B_authenticates_A
+ * Description: Propriété d'Accord faible (Weak Agreement)
+ * Si B termine avec A sur des données (k, nA, nB), alors A a aussi exécuté le protocole avec B
+ */
+lemma agreement_B_authenticates_A:
+  all-traces
+  "All B A k nA nB #i.
+    Commit_B(B, A, k, nA, nB) @i ==> 
+    (Ex #j. Running_A(A, B, k, nA, nB) @j) |
+    (Ex #r. Reveal(A) @r) | (Ex #r. Reveal(B) @r)"
+
+/*
+ * Lemme: key_freshness
+ * Description: Propriété de Fraîcheur (Freshness)
+ * Vérifie que chaque clé générée est unique
+ */
+lemma key_freshness:
+  all-traces
+  "All k #i.
+    Generate_Key(k) @i ==> not (Ex #j. Generate_Key(k) @j & not(#i = #j))"
+
+/*
+ * Lemme: injective_agreement_A_B
+ * Description: Accord injectif (Injective Agreement)
+ * Si A termine une session, il existe une session UNIQUE correspondante chez B
+ * Protège contre les attaques par rejeu
+ */
+lemma injective_agreement_A_B:
+  all-traces
+  "All A B k nA nB #i.
+    Commit_A(A, B, k, nA, nB) @i ==> 
+    (Ex #j. Commit_B(B, A, k, nA, nB) @j & j < i
+     & not (Ex A2 B2 k2 nA2 nB2 #i2. Commit_A(A2, B2, k2, nA2, nB2) @i2 & not(#i2 = #i))
+    ) |
+    (Ex #r. Reveal(A) @r) | (Ex #r. Reveal(B) @r)"
+
+/*
+ * Lemme: injective_agreement_B_A
+ * Description: Accord injectif (Injective Agreement)
+ * Si B termine une session, il existe une session UNIQUE correspondante chez A
+ */
+lemma injective_agreement_B_A:
+  all-traces
+  "All B A k nA nB #i.
+    Commit_B(B, A, k, nA, nB) @i ==> 
+    (Ex #j. Running_A(A, B, k, nA, nB) @j & j < i
+     & not (Ex B2 A2 k2 nA2 nB2 #i2. Commit_B(B2, A2, k2, nA2, nB2) @i2 & not(#i2 = #i))
+    ) |
+    (Ex #r. Reveal(A) @r) | (Ex #r. Reveal(B) @r)"
+
+end

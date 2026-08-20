@@ -1,0 +1,91 @@
+/*
+Simple First Example
+====================
+
+Author: Jannik Dreier
+Date:   September 2025
+
+We model the following simple protocol:
+
+C -> S: aenc(k,pkS)
+
+*/
+
+theory FirstExample
+begin
+
+builtins: asymmetric-encryption //, hashing
+
+// Registering a public key
+rule Register_pk:
+    [ Fr(~ltk) ]
+  -->
+    [ !Ltk($A, ~ltk), !Pk($A, pk(~ltk)), Out(pk(~ltk)) ]
+
+// Corruption. Uncomment for question 4
+/*
+rule Reveal_ltk:
+    [ !Ltk(A, ltk) ]
+  --[ LtkReveal(A) ]->
+    [ Out(ltk) ]
+*/
+
+// Start a new thread executing the client role, choosing the server
+// non-deterministically.
+rule Client_0:
+    [ Fr(~id)        // fresh session identifier
+    , !Pk($S, pkS)   // lookup public-key of server
+    ]
+  --[ Create_C($C, ~id) ]->
+    [ St_C_1( $C, ~id, $S, pkS ) // Store server and key for next step of thread
+    ]
+
+// Client sends first message: C -> S: aenc(k,pkS)
+rule Client_1:
+  let m = aenc(~k, pkS)          // can also be written as aenc{~k}pkS (syntactic sugar)
+  in
+    [ Fr(~k)                     // choose fresh key
+    , St_C_1( $C, ~id, $S, pkS ) // Lookup state (server and key) from previous step
+    ]
+  --[ End_C( $C, $S, ~id, pkS, ~k )
+    , Claim_Secret( $C, $S, ~k ) ]-> // claim secrecy for the session key 'k'
+    [
+      Out( m )                   // Send the encrypted session key to the server
+    ]
+
+// Start a server thread
+rule Serv_0:
+    [ Fr(~id)           // fresh session identifier
+    , !Ltk($S, ~ltkS)   // lookup the private-key
+    ]
+  --[ Create_S($S, ~id) ]->
+    [ St_S_1( $S, ~id, ~ltkS) ]  // store state for next step
+
+// Server receiving a session-key from some client.
+rule Serv_1:
+  let m = aenc(k, pk(~ltkS))
+  in
+    [ St_S_1( $S, ~id, ~ltkS)               // lookup the current state
+    , In( m )                               // receive a message
+    ]
+  --[ End_S( $C, $S, ~id, pk(~ltkS), k )
+    ]->
+    [  ]
+
+lemma Client_session_key_secrecy:
+  " All C S k #i.
+    (
+      /* If client 'C' has set up a session key 'k' with a server 'S' */
+      Claim_Secret(C, S, k) @ #i
+        /* the adversary cannot know 'k' */
+        ==> not( Ex #j. K(k) @ #j )
+    )
+  "
+
+lemma Client_Server_can_finish:
+  exists-trace
+  " Ex C S pkS idC idS k #i #j.
+        End_C(C, S, idC, pkS, k) @ #i & End_S(C, S, idS, pkS, k) @ #j
+  "
+
+end
